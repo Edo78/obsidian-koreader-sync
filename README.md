@@ -21,4 +21,6 @@ Once everything is ready for the test you can plug the device with KOReader and 
 
 Create an issue if something didn't work as expected.
 
-## 
+## Known Issues
+- the name of the note is set to the note as written is koreader so it can be too long
+- editing the note in koreader will create a new note in obsidian but the old one will not be removed
