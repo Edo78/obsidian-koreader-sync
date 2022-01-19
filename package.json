@@ -1,14 +1,14 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "0.12.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "obsidian-koreader-plugin",
+	"version": "0.0.1",
+	"description": "This is a plugin for Obsidian. This plugin syncs highlights and notes taken in KOReader.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
 	},
 	"keywords": [],
-	"author": "",
+	"author": "Federico \"Edo\" Granata",
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^16.11.6",
@@ -19,5 +19,9 @@
 		"obsidian": "^0.12.17",
 		"tslib": "2.3.1",
 		"typescript": "4.4.4"
+	},
+	"dependencies": {
+		"lua-json": "^1.0.0",
+		"node-find-files": "^1.0.0"
 	}
 }
