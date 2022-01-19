@@ -1,4 +1,4 @@
-import { addIcon, App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, addIcon } from 'obsidian';
 
 interface KOReaderSettings {
 	koreaderBasePath: string;
@@ -60,7 +60,8 @@ by: [[${data[book].authors}]]
 
 ${noteTitle}
 `;
-					const notePath = `${this.settings.obsidianNoteFolder}/${noteTitle} (${bookmark}).md`;
+					const path = this.settings.obsidianNoteFolder === '/' ? '' : this.settings.obsidianNoteFolder + '/';
+					const notePath = `${path}${noteTitle} (${bookmark}).md`;
 					if (!existingFiles.includes(notePath)) {
 						this.app.vault.create(notePath, body);
 					}
@@ -163,13 +164,13 @@ class KoreaderSettingTab extends PluginSettingTab {
 
         const files = (this.app.vault.adapter as any).files;
 				const folders = Object.keys(files).filter(key => files[key].type === 'folder');
-				console.log(this.plugin.settings.obsidianNoteFolder);
-        folders.forEach((val) => {
-          dropdown.addOption(val, val);
-        });
+				console.log(folders);
+				folders.forEach((val) => {
+					dropdown.addOption(val, val);
+				});
         return dropdown
-					.setValue(this.plugin.settings.obsidianNoteFolder || '/') 
-          .onChange(async (value) => {
+					.setValue(this.plugin.settings.obsidianNoteFolder) 
+					.onChange(async (value) => {
 						this.plugin.settings.obsidianNoteFolder = value;
             await this.plugin.saveSettings();
           });
