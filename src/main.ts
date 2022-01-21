@@ -87,7 +87,6 @@ class KoreaderSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		this.app.vault.getAbstractFileByPath
     new Setting(containerEl)
       .setName('Highlights folder location')
       .setDesc('Vault folder to use for writing book highlight notes')
