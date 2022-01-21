@@ -1,4 +1,6 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, addIcon } from 'obsidian';
+import { KOReaderMetadata } from './koreader-metadata';
+import { Books } from './types';
 
 interface KOReaderSettings {
 	koreaderBasePath: string;
@@ -8,32 +10,6 @@ interface KOReaderSettings {
 const DEFAULT_SETTINGS: KOReaderSettings = {
 	koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/'
-}
-
-interface Bookmark {
-	chapter: string;
-	text: string;
-	datetime: string;
-	notes: string;
-	highlighted: boolean;
-	pos0: string;
-	pos1?: string;
-	page: string;
-}
-
-interface Bookmarks {
-	[key: number]: Bookmark;
-}
-
-interface Book {
-	title: string;
-	authors: string;
-	bookmarks: Bookmarks;
-	highlight: any;
-}
-
-interface Books {
-	[fullTitle: string]: Book;
 }
 
 export default class KOReader extends Plugin {
@@ -81,51 +57,6 @@ ${noteTitle}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-}
-
-class KOReaderMetadata {
-	koreaderBasePath: string;
-	FindFiles = require("node-find-files");
-	path = require('path');
-	luaJson = require('lua-json')
-	fs = require('fs');
-
-	constructor(koreaderBasePath: string) {
-		this.koreaderBasePath = koreaderBasePath;
-	}
-
-	public async scan(): Promise<Books> {
-		const metadatas:any = {};
-		return new Promise((resolve, reject) => {
-			const finder = new this.FindFiles({
-				rootFolder: this.koreaderBasePath,
-			});
-			finder.on('match', (file: string) => {
-				const filename = this.path.parse(file).base;
-				if (filename.match(/metadata\..*\.lua$/)) {
-					const content = this.fs.readFileSync(file, 'utf8');
-					const jsonMetadata = this.luaJson.parse(content);
-					const { highlight, bookmarks, doc_props: { title }, doc_props: { authors } } = jsonMetadata;
-					if (Object.keys(highlight).length && Object.keys(bookmarks).length) {
-						metadatas[`${title} - ${authors}`] = {
-							title,
-							authors,
-							// highlight,
-							bookmarks,
-						};
-					}
-				}
-			});
-			finder.on('error', (err: any) => {
-				console.log(err);
-				reject(err);
-			});
-			finder.on('complete', () => {
-				resolve(metadatas);
-			});
-			finder.startSearch();
-		});
 	}
 }
 
