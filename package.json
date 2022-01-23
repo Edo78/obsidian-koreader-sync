@@ -4,6 +4,7 @@
 	"description": "This is a plugin for Obsidian. This plugin syncs highlights and notes taken in KOReader.",
 	"main": "main.js",
 	"scripts": {
+		"lint": "eslint",
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
 	},
@@ -17,7 +18,18 @@
 		"@typescript-eslint/parser": "^5.2.0",
 		"builtin-modules": "^3.2.0",
 		"esbuild": "0.13.12",
+		"eslint": "^8.7.0",
+		"eslint-config-airbnb": "^19.0.4",
+		"eslint-config-node": "^4.1.0",
+		"eslint-config-prettier": "^8.3.0",
+		"eslint-plugin-import": "^2.25.4",
+		"eslint-plugin-jsx-a11y": "^6.5.1",
+		"eslint-plugin-node": "^11.1.0",
+		"eslint-plugin-prettier": "^4.0.0",
+		"eslint-plugin-react": "^7.28.0",
+		"eslint-plugin-react-hooks": "^4.3.0",
 		"obsidian": "^0.12.17",
+		"prettier": "^2.5.1",
 		"tslib": "2.3.1",
 		"typescript": "4.4.4"
 	},
