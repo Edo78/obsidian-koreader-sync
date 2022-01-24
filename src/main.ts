@@ -7,11 +7,20 @@ import { KOReaderMetadata } from './koreader-metadata';
 interface KOReaderSettings {
   koreaderBasePath: string;
   obsidianNoteFolder: string;
+  noteTitleOptions: TitleOptions;
+  bookTitleOptions: TitleOptions;
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
+  noteTitleOptions: {
+    maxWords: 5,
+  },
+  bookTitleOptions: {
+    maxWords: 5,
+    prefix: '(book) ',
+  },
 };
 
 interface TitleOptions {
@@ -57,7 +66,6 @@ export default class KOReader extends Plugin {
         const metadata = new KOReaderMetadata(this.settings.koreaderBasePath);
         const data: Books = await metadata.scan();
 
-        const existingFiles = this.app.vault.getMarkdownFiles().map((file) => file.path);
         const existingNotes = this.app.vault.getMarkdownFiles().map((f) => {
           const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
           return (fm?.['koreader-sync']?.['uniqueId'])
@@ -69,30 +77,30 @@ export default class KOReader extends Plugin {
             if (existingNotes.includes(uniqueId)) {
               continue;
             }
+            const path =
+              this.settings.obsidianNoteFolder === '/'
+                ? ''
+                : `${this.settings.obsidianNoteFolder}/`;
             const note = data[book].bookmarks[bookmark];
             const noteItself = note.text ? note.text
               .split(data[book].bookmarks[bookmark].datetime)[1]
               .replace(/^\s+|\s+$/g, '') : '';
             const noteTitle = noteItself ?
-              this.manageTitle(noteItself) :
-              `${this.manageTitle(data[book].title)} - ${data[book].authors}`;
+              this.manageTitle(noteItself, this.settings.noteTitleOptions) :
+              `${this.manageTitle(note.notes, this.settings.noteTitleOptions)} - ${data[book].authors}`;
 
             const frontmatterData = {
               'koreader-sync': {
                 'uniqueId': uniqueId,
               },
             };
-            const content = `# Title: [[${this.manageTitle(data[book].title)} - ${data[book].authors}|${data[book].title}]]
+            const content = `# Title: [[${path}${this.manageTitle(data[book].title, this.settings.bookTitleOptions)} - ${data[book].authors}|${data[book].title}]]
 by: [[${data[book].authors}]]
 ## Chapter: ${note.chapter}
 **==${note.notes}==**
 
 ${noteItself}
 `;
-            const path =
-              this.settings.obsidianNoteFolder === '/'
-                ? ''
-                : `${this.settings.obsidianNoteFolder}/`;
             const notePath = normalizePath(`${path}${noteTitle}.md`);
             this.app.vault.create(notePath, matter.stringify(content, frontmatterData));
           }
