@@ -1,5 +1,6 @@
 import { App, Plugin, PluginSettingTab, Setting, normalizePath } from 'obsidian';
-
+import * as matter from 'gray-matter';
+import * as crypto from 'crypto';
 import { Books } from './types';
 import { KOReaderMetadata } from './koreader-metadata';
 
@@ -55,12 +56,19 @@ export default class KOReader extends Plugin {
       async (evt: MouseEvent) => {
         const metadata = new KOReaderMetadata(this.settings.koreaderBasePath);
         const data: Books = await metadata.scan();
-        // console.log(JSON.stringify(data, null, 2));
 
         const existingFiles = this.app.vault.getMarkdownFiles().map((file) => file.path);
+        const existingNotes = this.app.vault.getMarkdownFiles().map((f) => {
+          const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
+          return (fm?.['koreader-sync']?.['uniqueId'])
+        });
 
         for (const book in data) {
           for (const bookmark in data[book].bookmarks) {
+            const uniqueId = crypto.createHash('md5').update(`${data[book].title} - ${data[book].authors} - ${data[book].bookmarks[bookmark].pos0} - ${data[book].bookmarks[bookmark].pos1}`).digest("hex");
+            if (existingNotes.includes(uniqueId)) {
+              continue;
+            }
             const note = data[book].bookmarks[bookmark];
             const noteItself = note.text ? note.text
               .split(data[book].bookmarks[bookmark].datetime)[1]
@@ -69,7 +77,12 @@ export default class KOReader extends Plugin {
               this.manageTitle(noteItself) :
               `${this.manageTitle(data[book].title)} - ${data[book].authors}`;
 
-            const body = `# Title: [[${this.manageTitle(data[book].title)} - ${data[book].authors}|${data[book].title}]]
+            const frontmatterData = {
+              'koreader-sync': {
+                'uniqueId': uniqueId,
+              },
+            };
+            const content = `# Title: [[${this.manageTitle(data[book].title)} - ${data[book].authors}|${data[book].title}]]
 by: [[${data[book].authors}]]
 ## Chapter: ${note.chapter}
 **==${note.notes}==**
@@ -80,10 +93,8 @@ ${noteItself}
               this.settings.obsidianNoteFolder === '/'
                 ? ''
                 : `${this.settings.obsidianNoteFolder}/`;
-            const notePath = normalizePath(`${path}${noteTitle} (${bookmark}).md`);
-            if (!existingFiles.includes(notePath)) {
-              this.app.vault.create(notePath, body);
-            }
+            const notePath = normalizePath(`${path}${noteTitle}.md`);
+            this.app.vault.create(notePath, matter.stringify(content, frontmatterData));
           }
         }
       }

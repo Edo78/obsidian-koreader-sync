@@ -5,7 +5,7 @@ export interface Bookmark {
   notes: string;
   highlighted: boolean;
   pos0: string;
-  pos1?: string;
+  pos1: string;
   page: string;
 }
 
