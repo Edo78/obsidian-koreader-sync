@@ -17,10 +17,12 @@ interface KOReaderSettings {
   noteTitleOptions: TitleOptions;
   bookTitleOptions: TitleOptions;
   keepInSync: boolean;
+  aFolderForEachBook: boolean;
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
   keepInSync: false,
+  aFolderForEachBook: false,
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
   noteTitleOptions: {
@@ -81,7 +83,7 @@ export default class KOReader extends Plugin {
     this.addSettingTab(new KoreaderSettingTab(this.app, this));
   }
 
-  onunload() { }
+  onunload() {}
 
   async loadSettings() {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
@@ -99,16 +101,17 @@ export default class KOReader extends Plugin {
     book: Book;
     keepInSync?: boolean;
   }) {
-    const { path, uniqueId, bookmark, managedBookTitle, book, keepInSync } = note;
+    const { path, uniqueId, bookmark, managedBookTitle, book, keepInSync } =
+      note;
     const noteItself = bookmark.text
       ? bookmark.text.split(bookmark.datetime)[1].replace(/^\s+|\s+$/g, '')
       : '';
     const noteTitle = noteItself
       ? this.manageTitle(noteItself, this.settings.noteTitleOptions)
       : `${this.manageTitle(
-        bookmark.notes,
-        this.settings.noteTitleOptions
-      )} - ${book.authors}`;
+          bookmark.notes,
+          this.settings.noteTitleOptions
+        )} - ${book.authors}`;
     const notePath = normalizePath(`${path}/${noteTitle}`);
 
     const content = `# Title: [[${normalizePath(
@@ -132,11 +135,7 @@ ${noteItself}
           datetime: bookmark.datetime,
         },
         metadata: {
-          body_hash: crypto
-            .createHash('md5')
-            .update(
-              content)
-            .digest('hex'),
+          body_hash: crypto.createHash('md5').update(content).digest('hex'),
           keep_in_sync: keepInSync || this.settings.keepInSync,
           yet_to_be_edited: true,
         },
@@ -150,7 +149,14 @@ ${noteItself}
     const metadata = new KOReaderMetadata(this.settings.koreaderBasePath);
     const data: Books = await metadata.scan();
 
-    const existingNotes: { [key: string]: { keep_in_sync: boolean, yet_to_be_edited: boolean, note: TAbstractFile } } = {};
+    // create a list of notes already imported in obsidian
+    const existingNotes: {
+      [key: string]: {
+        keep_in_sync: boolean;
+        yet_to_be_edited: boolean;
+        note: TAbstractFile;
+      };
+    } = {};
     this.app.vault.getMarkdownFiles().forEach((f) => {
       const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
       if (fm?.KOREADERKEY?.uniqueId) {
@@ -167,6 +173,15 @@ ${noteItself}
         data[book].title,
         this.settings.bookTitleOptions
       )}-${data[book].authors}`;
+      // if aFolderForEachBook is set, create a folder for each book
+      if (this.settings.aFolderForEachBook) {
+        const bookPath = normalizePath(
+          `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
+        );
+        if (!this.app.vault.getAbstractFileByPath(bookPath)) {
+          this.app.vault.createFolder(bookPath);
+        }
+      }
       for (const bookmark in data[book].bookmarks) {
         const uniqueId = crypto
           .createHash('md5')
@@ -177,19 +192,27 @@ ${noteItself}
 
         if (Object.keys(existingNotes).includes(uniqueId)) {
           // if the user wants to keep the note in sync, we delete only if the note is not yet_to_be_edited
-          if (existingNotes[uniqueId].keep_in_sync && existingNotes[uniqueId].yet_to_be_edited) {
+          if (
+            existingNotes[uniqueId].keep_in_sync &&
+            existingNotes[uniqueId].yet_to_be_edited
+          ) {
             this.app.vault.delete(existingNotes[uniqueId].note);
           } else {
             continue;
           }
         }
+        // if the setting aFolderForEachBook is true, we add the managedBookTitle to the path specified in obsidianNoteFolder
+        const path = this.settings.aFolderForEachBook
+          ? `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
+          : this.settings.obsidianNoteFolder;
         const { content, frontmatterData, notePath } = this.createNote({
-          path: this.settings.obsidianNoteFolder,
+          path,
           uniqueId,
           bookmark: data[book].bookmarks[bookmark],
           managedBookTitle,
           book: data[book],
-          keepInSync: existingNotes[uniqueId]?.keep_in_sync || this.settings.keepInSync,
+          keepInSync:
+            existingNotes[uniqueId]?.keep_in_sync || this.settings.keepInSync,
         });
 
         this.app.vault.create(
@@ -276,33 +299,45 @@ class KoreaderSettingTab extends PluginSettingTab {
           })
       );
 
+    new Setting(containerEl)
+      .setName('Create a folder for each book')
+      .setDesc(
+        'All the notes from a book will be saved in a folder named after the book'
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.aFolderForEachBook)
+          .onChange(async (value) => {
+            this.plugin.settings.aFolderForEachBook = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
     containerEl.createEl('h2', { text: 'Note title settings' });
 
-    new Setting(containerEl)
-      .setName('Prefix')
-      .addText((text) =>
-        text
-          .setPlaceholder('Enter the prefix')
-          .setValue(this.plugin.settings.noteTitleOptions.prefix)
-          .onChange(async (value) => {
-            this.plugin.settings.noteTitleOptions.prefix = value;
-            await this.plugin.saveSettings();
-          })
-      )
-    new Setting(containerEl)
-      .setName('Suffix')
-      .addText((text) =>
-        text
-          .setPlaceholder('Enter the suffix')
-          .setValue(this.plugin.settings.noteTitleOptions.suffix)
-          .onChange(async (value) => {
-            this.plugin.settings.noteTitleOptions.suffix = value;
-            await this.plugin.saveSettings();
-          })
-      )
+    new Setting(containerEl).setName('Prefix').addText((text) =>
+      text
+        .setPlaceholder('Enter the prefix')
+        .setValue(this.plugin.settings.noteTitleOptions.prefix)
+        .onChange(async (value) => {
+          this.plugin.settings.noteTitleOptions.prefix = value;
+          await this.plugin.saveSettings();
+        })
+    );
+    new Setting(containerEl).setName('Suffix').addText((text) =>
+      text
+        .setPlaceholder('Enter the suffix')
+        .setValue(this.plugin.settings.noteTitleOptions.suffix)
+        .onChange(async (value) => {
+          this.plugin.settings.noteTitleOptions.suffix = value;
+          await this.plugin.saveSettings();
+        })
+    );
     new Setting(containerEl)
       .setName('Max words')
-      .setDesc('If is longer than this number of words, it will be truncated and "..." will be appended before the optional suffix')
+      .setDesc(
+        'If is longer than this number of words, it will be truncated and "..." will be appended before the optional suffix'
+      )
       .addSlider((number) =>
         number
           .setDynamicTooltip()
@@ -312,10 +347,12 @@ class KoreaderSettingTab extends PluginSettingTab {
             this.plugin.settings.noteTitleOptions.maxWords = value;
             await this.plugin.saveSettings();
           })
-      )
+      );
     new Setting(containerEl)
       .setName('Max length')
-      .setDesc('If is longer than this number of characters, it will be truncated and "..." will be appended before the optional suffix')
+      .setDesc(
+        'If is longer than this number of characters, it will be truncated and "..." will be appended before the optional suffix'
+      )
       .addSlider((number) =>
         number
           .setDynamicTooltip()
@@ -329,31 +366,29 @@ class KoreaderSettingTab extends PluginSettingTab {
 
     containerEl.createEl('h2', { text: 'Book title settings' });
 
-    new Setting(containerEl)
-      .setName('Prefix')
-      .addText((text) =>
-        text
-          .setPlaceholder('Enter the prefix')
-          .setValue(this.plugin.settings.bookTitleOptions.prefix)
-          .onChange(async (value) => {
-            this.plugin.settings.bookTitleOptions.prefix = value;
-            await this.plugin.saveSettings();
-          })
-      )
-    new Setting(containerEl)
-      .setName('Suffix')
-      .addText((text) =>
-        text
-          .setPlaceholder('Enter the suffix')
-          .setValue(this.plugin.settings.bookTitleOptions.suffix)
-          .onChange(async (value) => {
-            this.plugin.settings.bookTitleOptions.suffix = value;
-            await this.plugin.saveSettings();
-          })
-      )
+    new Setting(containerEl).setName('Prefix').addText((text) =>
+      text
+        .setPlaceholder('Enter the prefix')
+        .setValue(this.plugin.settings.bookTitleOptions.prefix)
+        .onChange(async (value) => {
+          this.plugin.settings.bookTitleOptions.prefix = value;
+          await this.plugin.saveSettings();
+        })
+    );
+    new Setting(containerEl).setName('Suffix').addText((text) =>
+      text
+        .setPlaceholder('Enter the suffix')
+        .setValue(this.plugin.settings.bookTitleOptions.suffix)
+        .onChange(async (value) => {
+          this.plugin.settings.bookTitleOptions.suffix = value;
+          await this.plugin.saveSettings();
+        })
+    );
     new Setting(containerEl)
       .setName('Max words')
-      .setDesc('If is longer than this number of words, it will be truncated and "..." will be appended before the optional suffix')
+      .setDesc(
+        'If is longer than this number of words, it will be truncated and "..." will be appended before the optional suffix'
+      )
       .addSlider((number) =>
         number
           .setDynamicTooltip()
@@ -363,10 +398,12 @@ class KoreaderSettingTab extends PluginSettingTab {
             this.plugin.settings.bookTitleOptions.maxWords = value;
             await this.plugin.saveSettings();
           })
-      )
+      );
     new Setting(containerEl)
       .setName('Max length')
-      .setDesc('If is longer than this number of characters, it will be truncated and "..." will be appended before the optional suffix')
+      .setDesc(
+        'If is longer than this number of characters, it will be truncated and "..." will be appended before the optional suffix'
+      )
       .addSlider((number) =>
         number
           .setDynamicTooltip()
