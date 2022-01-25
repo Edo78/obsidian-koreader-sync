@@ -22,9 +22,11 @@ const DEFAULT_SETTINGS: KOReaderSettings = {
   obsidianNoteFolder: '/',
   noteTitleOptions: {
     maxWords: 5,
+    maxLength: 25,
   },
   bookTitleOptions: {
     maxWords: 5,
+    maxLength: 25,
     prefix: '(book) ',
   },
 };
@@ -35,6 +37,8 @@ interface TitleOptions {
   maxLength?: number;
   maxWords?: number;
 }
+
+const KOREADERKEY = 'koreader-sync';
 
 export default class KOReader extends Plugin {
   settings: KOReaderSettings;
@@ -102,11 +106,13 @@ export default class KOReader extends Plugin {
         this.settings.noteTitleOptions
       )} - ${book.authors}`;
     const notePath = normalizePath(`${path}/${noteTitle}`);
+
     const frontmatterData = {
-      'koreader-sync': {
+      KOREADERKEY: {
         uniqueId,
       },
     };
+
     const content = `# Title: [[${normalizePath(
       `${path}/${managedBookTitle}`
     )}|${book.title}]]
@@ -126,7 +132,7 @@ ${noteItself}
 
     const existingNotes = this.app.vault.getMarkdownFiles().map((f) => {
       const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
-      return fm?.['koreader-sync']?.uniqueId;
+      return fm?.[KOREADERKEY]?.uniqueId;
     });
 
     for (const book in data) {
@@ -174,7 +180,7 @@ class KoreaderSettingTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'KOReader plugin settings' });
+    containerEl.createEl('h2', { text: 'KOReader general settings' });
 
     new Setting(containerEl)
       .setName('KOReader mounted path')
@@ -208,5 +214,107 @@ class KoreaderSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    containerEl.createEl('h2', { text: 'Note title settings' });
+
+    new Setting(containerEl)
+      .setName('Prefix')
+      .addText((text) =>
+        text
+          .setPlaceholder('Enter the prefix')
+          .setValue(this.plugin.settings.noteTitleOptions.prefix)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTitleOptions.prefix = value;
+            await this.plugin.saveSettings();
+          })
+      )
+    new Setting(containerEl)
+      .setName('Suffix')
+      .addText((text) =>
+        text
+          .setPlaceholder('Enter the suffix')
+          .setValue(this.plugin.settings.noteTitleOptions.suffix)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTitleOptions.suffix = value;
+            await this.plugin.saveSettings();
+          })
+      )
+    new Setting(containerEl)
+      .setName('Max words')
+      .setDesc('If is longer than this number of words, it will be truncated and "..." will be appended before the optional suffix')
+      .addSlider((number) =>
+        number
+          .setDynamicTooltip()
+          .setLimits(0, 10, 1)
+          .setValue(this.plugin.settings.noteTitleOptions.maxWords)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTitleOptions.maxWords = value;
+            await this.plugin.saveSettings();
+          })
+      )
+    new Setting(containerEl)
+      .setName('Max length')
+      .setDesc('If is longer than this number of characters, it will be truncated and "..." will be appended before the optional suffix')
+      .addSlider((number) =>
+        number
+          .setDynamicTooltip()
+          .setLimits(0, 50, 1)
+          .setValue(this.plugin.settings.noteTitleOptions.maxLength)
+          .onChange(async (value) => {
+            this.plugin.settings.noteTitleOptions.maxLength = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    containerEl.createEl('h2', { text: 'Book title settings' });
+
+    new Setting(containerEl)
+      .setName('Prefix')
+      .addText((text) =>
+        text
+          .setPlaceholder('Enter the prefix')
+          .setValue(this.plugin.settings.bookTitleOptions.prefix)
+          .onChange(async (value) => {
+            this.plugin.settings.bookTitleOptions.prefix = value;
+            await this.plugin.saveSettings();
+          })
+      )
+    new Setting(containerEl)
+      .setName('Suffix')
+      .addText((text) =>
+        text
+          .setPlaceholder('Enter the suffix')
+          .setValue(this.plugin.settings.bookTitleOptions.suffix)
+          .onChange(async (value) => {
+            this.plugin.settings.bookTitleOptions.suffix = value;
+            await this.plugin.saveSettings();
+          })
+      )
+    new Setting(containerEl)
+      .setName('Max words')
+      .setDesc('If is longer than this number of words, it will be truncated and "..." will be appended before the optional suffix')
+      .addSlider((number) =>
+        number
+          .setDynamicTooltip()
+          .setLimits(0, 10, 1)
+          .setValue(this.plugin.settings.bookTitleOptions.maxWords)
+          .onChange(async (value) => {
+            this.plugin.settings.bookTitleOptions.maxWords = value;
+            await this.plugin.saveSettings();
+          })
+      )
+    new Setting(containerEl)
+      .setName('Max length')
+      .setDesc('If is longer than this number of characters, it will be truncated and "..." will be appended before the optional suffix')
+      .addSlider((number) =>
+        number
+          .setDynamicTooltip()
+          .setLimits(0, 50, 1)
+          .setValue(this.plugin.settings.bookTitleOptions.maxLength)
+          .onChange(async (value) => {
+            this.plugin.settings.bookTitleOptions.maxLength = value;
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }
