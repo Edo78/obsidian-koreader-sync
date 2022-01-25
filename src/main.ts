@@ -4,10 +4,11 @@ import {
   PluginSettingTab,
   Setting,
   normalizePath,
+  TAbstractFile,
 } from 'obsidian';
 import * as matter from 'gray-matter';
 import * as crypto from 'crypto';
-import { Book, Bookmark, Books } from './types';
+import { Book, Bookmark, Books, FrontMatter } from './types';
 import { KOReaderMetadata } from './koreader-metadata';
 
 interface KOReaderSettings {
@@ -15,9 +16,11 @@ interface KOReaderSettings {
   obsidianNoteFolder: string;
   noteTitleOptions: TitleOptions;
   bookTitleOptions: TitleOptions;
+  keepInSync: boolean;
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
+  keepInSync: false,
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
   noteTitleOptions: {
@@ -94,8 +97,9 @@ export default class KOReader extends Plugin {
     bookmark: Bookmark;
     managedBookTitle: string;
     book: Book;
+    keepInSync?: boolean;
   }) {
-    const { path, uniqueId, bookmark, managedBookTitle, book } = note;
+    const { path, uniqueId, bookmark, managedBookTitle, book, keepInSync } = note;
     const noteItself = bookmark.text
       ? bookmark.text.split(bookmark.datetime)[1].replace(/^\s+|\s+$/g, '')
       : '';
@@ -107,12 +111,6 @@ export default class KOReader extends Plugin {
       )} - ${book.authors}`;
     const notePath = normalizePath(`${path}/${noteTitle}`);
 
-    const frontmatterData = {
-      KOREADERKEY: {
-        uniqueId,
-      },
-    };
-
     const content = `# Title: [[${normalizePath(
       `${path}/${managedBookTitle}`
     )}|${book.title}]]
@@ -123,6 +121,28 @@ by: [[${book.authors}]]
 ${noteItself}
 `;
 
+    const frontmatterData: { [key: string]: FrontMatter } = {
+      KOREADERKEY: {
+        uniqueId,
+        data: {
+          title: book.title,
+          authors: book.authors,
+          chapter: bookmark.chapter,
+          highlight: bookmark.notes,
+          datetime: bookmark.datetime,
+        },
+        metadata: {
+          body_hash: crypto
+            .createHash('md5')
+            .update(
+              content)
+            .digest('hex'),
+          keep_in_sync: keepInSync || this.settings.keepInSync,
+          yet_to_be_edited: true,
+        },
+      },
+    };
+
     return { content, frontmatterData, notePath };
   }
 
@@ -130,9 +150,16 @@ ${noteItself}
     const metadata = new KOReaderMetadata(this.settings.koreaderBasePath);
     const data: Books = await metadata.scan();
 
-    const existingNotes = this.app.vault.getMarkdownFiles().map((f) => {
+    const existingNotes: { [key: string]: { keep_in_sync: boolean, yet_to_be_edited: boolean, note: TAbstractFile } } = {};
+    this.app.vault.getMarkdownFiles().forEach((f) => {
       const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
-      return fm?.[KOREADERKEY]?.uniqueId;
+      if (fm?.KOREADERKEY?.uniqueId) {
+        existingNotes[fm.KOREADERKEY.uniqueId] = {
+          keep_in_sync: fm.KOREADERKEY.metadata.keep_in_sync,
+          yet_to_be_edited: fm.KOREADERKEY.metadata.yet_to_be_edited,
+          note: f,
+        };
+      }
     });
 
     for (const book in data) {
@@ -147,8 +174,14 @@ ${noteItself}
             `${data[book].title} - ${data[book].authors} - ${data[book].bookmarks[bookmark].pos0} - ${data[book].bookmarks[bookmark].pos1}`
           )
           .digest('hex');
-        if (existingNotes.includes(uniqueId)) {
-          continue;
+
+        if (Object.keys(existingNotes).includes(uniqueId)) {
+          // if the user wants to keep the note in sync, we delete only if the note is not yet_to_be_edited
+          if (existingNotes[uniqueId].keep_in_sync && existingNotes[uniqueId].yet_to_be_edited) {
+            this.app.vault.delete(existingNotes[uniqueId].note);
+          } else {
+            continue;
+          }
         }
         const { content, frontmatterData, notePath } = this.createNote({
           path: this.settings.obsidianNoteFolder,
@@ -156,6 +189,7 @@ ${noteItself}
           bookmark: data[book].bookmarks[bookmark],
           managedBookTitle,
           book: data[book],
+          keepInSync: existingNotes[uniqueId]?.keep_in_sync || this.settings.keepInSync,
         });
 
         this.app.vault.create(
@@ -214,6 +248,33 @@ class KoreaderSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    new Setting(containerEl)
+      .setName('Keep in sync')
+      .setDesc(
+        createFragment((frag) => {
+          frag.appendText('Keep notes in sync with KOReader (read the ');
+          frag.createEl(
+            'a',
+            {
+              text: 'documentation',
+              href: 'https://github.com/Edo78/obsidian-koreader-sync#sync',
+            },
+            (a) => {
+              a.setAttr('target', '_blank');
+            }
+          );
+          frag.appendText(')');
+        })
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.keepInSync)
+          .onChange(async (value) => {
+            this.plugin.settings.keepInSync = value;
+            await this.plugin.saveSettings();
+          })
+      );
 
     containerEl.createEl('h2', { text: 'Note title settings' });
 
