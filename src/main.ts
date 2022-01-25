@@ -249,6 +249,33 @@ class KoreaderSettingTab extends PluginSettingTab {
           });
       });
 
+    new Setting(containerEl)
+      .setName('Keep in sync')
+      .setDesc(
+        createFragment((frag) => {
+          frag.appendText('Keep notes in sync with KOReader (read the ');
+          frag.createEl(
+            'a',
+            {
+              text: 'documentation',
+              href: 'https://github.com/Edo78/obsidian-koreader-sync#sync',
+            },
+            (a) => {
+              a.setAttr('target', '_blank');
+            }
+          );
+          frag.appendText(')');
+        })
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.keepInSync)
+          .onChange(async (value) => {
+            this.plugin.settings.keepInSync = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
     containerEl.createEl('h2', { text: 'Note title settings' });
 
     new Setting(containerEl)
