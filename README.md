@@ -3,6 +3,7 @@
 Sync [KOReader][1] notes in your [Obsidian][2] vault. The KOReader device must be connected to the device running obsidian to let the plugin scan through it's files.
 
 ## Configuration
+
 There ara four main settings:
 - `KOReader mounted path` that **MUST** be set correctly to the path where KOReader is mounted
 - `Highlights folder location` that can be let as the default `/` (or you can create a folder and select it from the dropdown)
