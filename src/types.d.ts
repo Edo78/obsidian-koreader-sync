@@ -23,3 +23,23 @@ export interface Book {
 export interface Books {
   [fullTitle: string]: Book;
 }
+
+export interface FrontMatterData {
+  title: string;
+  authors: string;
+  chapter: string;
+  highlight: string;
+  datetime: string;
+}
+
+export interface FrontMatterMetadata {
+  body_hash: string;
+  keep_in_sync: boolean;
+  yet_to_be_edited: boolean;
+}
+
+export interface FrontMatter {
+  uniqueId: string;
+  data: FrontMatterData,
+  metadata: FrontMatterMetadata,
+}
