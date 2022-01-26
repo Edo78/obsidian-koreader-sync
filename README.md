@@ -10,8 +10,33 @@ There ara four main settings:
 - `Keep in sync` that define if the plugin **should** keep the notes in sync with KOReader importing them again (see [sync](#sync))
 - `Create a folder for each book` if you are a fan of folders enabling this setting the **new notes** will be created in a subfolder named as the book itself
 
+### Template configuration
+The plugin use [Eta.js](https://eta.js.org/) as template engine to create the body of the note (the same used from the plugin [Templater](https://github.com/SilentVoid13/Templater)).
+The default template is pretty minimal
+```
+# Title: [[<%= it.bookPath %>|<%= it.title %>]]
+
+by: [[<%= it.authors %>]]
+
+## Chapter: <%= it.chapter %>
+
+**==<%= it.highlight %>==**
+
+<%= it.text %>
+```
+In the `Template settings` section you can found the the option to use a custom template. If you chose to do so you must create a `.md` file in the vault and write your template in it (I suggest to copy the default in it as a starting point) and write the full path in `Template file`
+
+The template receive the following arguments:
+- `bookPath`: koreader/(book) How to Take Smart Notes_... {book suffix}-Sönke Ahrens
+- `title`: How to Take Smart Notes: One Simple Technique to Boost Writing, Learning and Thinking - for Students, Academics and Nonfiction Book Writers
+- `authors`: Sönke Ahrens
+- `chapter`: 1.1 Good Solutions are Simple – and Unexpected
+- `highlight`: Clance and Imes 1978; Brems et al. 1994
+- `text`: Clance (1978) first identified the Impostor Phenomenon in therapeutic sessions with highly successful women who attributed achievements to external factors
+- `datetime`: 2022-01-22 09:57:29
+
 ## Usage
-Once the plugin is configured properly you can plug the device with KOReader and click on the icon with two documents. The plugin should propmplty create a single file for each note.
+Once the plugin is configured properly you can plug the device with KOReader and click on the icon with two documents and the tooltip `KOReader Plugin`. The plugin should propmplty create a single file for each note.
 
 Create an issue if something didn't work as expected.
 

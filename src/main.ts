@@ -354,7 +354,7 @@ class KoreaderSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Template File')
+      .setName('Template file')
       .setDesc('The template file to use. Remember to add the ".md" extension')
       .addText((text) =>
         text
