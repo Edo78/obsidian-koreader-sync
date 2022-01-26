@@ -20,6 +20,8 @@ by: [[<%= it.authors %>]]
 
 ## Chapter: <%= it.chapter %>
 
+Page: <%= it.page %>
+
 **==<%= it.highlight %>==**
 
 <%= it.text %>

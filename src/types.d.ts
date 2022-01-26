@@ -28,6 +28,7 @@ export interface FrontMatterData {
   title: string;
   authors: string;
   chapter: string;
+  page: number;
   highlight: string;
   datetime: string;
   text: string;
