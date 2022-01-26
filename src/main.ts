@@ -133,6 +133,7 @@ ${noteItself}
           chapter: bookmark.chapter,
           highlight: bookmark.notes,
           datetime: bookmark.datetime,
+          text: noteItself,
         },
         metadata: {
           body_hash: crypto.createHash('md5').update(content).digest('hex'),

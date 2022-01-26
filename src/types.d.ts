@@ -30,6 +30,7 @@ export interface FrontMatterData {
   chapter: string;
   highlight: string;
   datetime: string;
+  text: string;
 }
 
 export interface FrontMatterMetadata {
