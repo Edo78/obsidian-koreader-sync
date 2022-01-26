@@ -112,6 +112,8 @@ export default class KOReader extends Plugin {
   }) {
     const { path, uniqueId, bookmark, managedBookTitle, book, keepInSync } =
       note;
+    // the page is always the first number in the bookmark's text (eg. 'Pagine 12 foo bar')
+    const page = parseInt(bookmark.text.match(/\d+/g)[0]);
     const noteItself = bookmark.text
       ? bookmark.text.split(bookmark.datetime)[1].replace(/^\s+|\s+$/g, '')
       : '';
@@ -128,6 +130,8 @@ export default class KOReader extends Plugin {
 by: [[<%= it.authors %>]]
 
 ## Chapter: <%= it.chapter %>
+
+Page: <%= it.page %>
 
 **==<%= it.highlight %>==**
 
@@ -147,6 +151,7 @@ by: [[<%= it.authors %>]]
       highlight: bookmark.notes,
       text: noteItself,
       datetime: bookmark.datetime,
+      page,
     })) as string;
 
     const frontmatterData: { [key: string]: FrontMatter } = {
@@ -156,6 +161,7 @@ by: [[<%= it.authors %>]]
           title: book.title,
           authors: book.authors,
           chapter: bookmark.chapter,
+          page,
           highlight: bookmark.notes,
           datetime: bookmark.datetime,
           text: noteItself,
