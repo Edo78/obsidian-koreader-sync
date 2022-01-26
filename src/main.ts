@@ -5,9 +5,11 @@ import {
   Setting,
   normalizePath,
   TAbstractFile,
+  TFile,
 } from 'obsidian';
 import * as matter from 'gray-matter';
 import * as crypto from 'crypto';
+import * as eta from 'eta';
 import { Book, Bookmark, Books, FrontMatter } from './types';
 import { KOReaderMetadata } from './koreader-metadata';
 
@@ -18,11 +20,14 @@ interface KOReaderSettings {
   bookTitleOptions: TitleOptions;
   keepInSync: boolean;
   aFolderForEachBook: boolean;
+  customTemplate: boolean;
+  templatePath?: string;
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
   keepInSync: false,
   aFolderForEachBook: false,
+  customTemplate: false,
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
   noteTitleOptions: {
@@ -72,6 +77,10 @@ export default class KOReader extends Plugin {
   }
 
   async onload() {
+    eta.configure({
+      cache: true, // Make Eta cache templates
+      autoEscape: false,
+    });
     await this.loadSettings();
 
     const ribbonIconEl = this.addRibbonIcon(
@@ -83,7 +92,7 @@ export default class KOReader extends Plugin {
     this.addSettingTab(new KoreaderSettingTab(this.app, this));
   }
 
-  onunload() { }
+  onunload() {}
 
   async loadSettings() {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
@@ -93,7 +102,7 @@ export default class KOReader extends Plugin {
     await this.saveData(this.settings);
   }
 
-  private createNote(note: {
+  private async createNote(note: {
     path: string;
     uniqueId: string;
     bookmark: Bookmark;
@@ -109,20 +118,36 @@ export default class KOReader extends Plugin {
     const noteTitle = noteItself
       ? this.manageTitle(noteItself, this.settings.noteTitleOptions)
       : `${this.manageTitle(
-        bookmark.notes,
-        this.settings.noteTitleOptions
-      )} - ${book.authors}`;
+          bookmark.notes,
+          this.settings.noteTitleOptions
+        )} - ${book.authors}`;
     const notePath = normalizePath(`${path}/${noteTitle}`);
 
-    const content = `# Title: [[${normalizePath(
-      `${path}/${managedBookTitle}`
-    )}|${book.title}]]
-by: [[${book.authors}]]
-## Chapter: ${bookmark.chapter}
-**==${bookmark.notes}==**
+    const defaultTemplate = `# Title: [[<%= it.bookPath %>|<%= it.title %>]]
 
-${noteItself}
-`;
+by: [[<%= it.authors %>]]
+
+## Chapter: <%= it.chapter %>
+
+**==<%= it.highlight %>==**
+
+<%= it.text %>`;
+
+    const templateFile = this.settings.customTemplate
+      ? this.app.vault.getAbstractFileByPath(this.settings.templatePath)
+      : null;
+    const template = templateFile
+      ? await this.app.vault.read(templateFile as TFile)
+      : defaultTemplate;
+    const content = (await eta.render(template, {
+      bookPath: normalizePath(`${path}/${managedBookTitle}`),
+      title: book.title,
+      authors: book.authors,
+      chapter: bookmark.chapter,
+      highlight: bookmark.notes,
+      text: noteItself,
+      datetime: bookmark.datetime,
+    })) as string;
 
     const frontmatterData: { [key: string]: FrontMatter } = {
       [KOREADERKEY]: {
@@ -176,11 +201,11 @@ ${noteItself}
       )}-${data[book].authors}`;
       // if aFolderForEachBook is set, create a folder for each book
       if (this.settings.aFolderForEachBook) {
-        const bookPath = normalizePath(
+        const bookFolder = normalizePath(
           `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
         );
-        if (!this.app.vault.getAbstractFileByPath(bookPath)) {
-          this.app.vault.createFolder(bookPath);
+        if (!this.app.vault.getAbstractFileByPath(bookFolder)) {
+          this.app.vault.createFolder(bookFolder);
         }
       }
       for (const bookmark in data[book].bookmarks) {
@@ -206,7 +231,7 @@ ${noteItself}
         const path = this.settings.aFolderForEachBook
           ? `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
           : this.settings.obsidianNoteFolder;
-        const { content, frontmatterData, notePath } = this.createNote({
+        const { content, frontmatterData, notePath } = await this.createNote({
           path,
           uniqueId,
           bookmark: data[book].bookmarks[bookmark],
@@ -242,7 +267,7 @@ class KoreaderSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('KOReader mounted path')
-      .setDesc('/media/<user>/KOBOeReader')
+      .setDesc('Eg. /media/<user>/KOBOeReader')
       .addText((text) =>
         text
           .setPlaceholder('Enter the path wher KOReader is mounted')
@@ -310,6 +335,33 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.aFolderForEachBook)
           .onChange(async (value) => {
             this.plugin.settings.aFolderForEachBook = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    containerEl.createEl('h2', { text: 'Template settings' });
+
+    new Setting(containerEl)
+      .setName('Custom template')
+      .setDesc('Use a custom template for the notes')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.customTemplate)
+          .onChange(async (value) => {
+            this.plugin.settings.customTemplate = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Template file')
+      .setDesc('The template file to use. Remember to add the ".md" extension')
+      .addText((text) =>
+        text
+          .setPlaceholder('templates/note.md')
+          .setValue(this.plugin.settings.templatePath)
+          .onChange(async (value) => {
+            this.plugin.settings.templatePath = value;
             await this.plugin.saveSettings();
           })
       );
