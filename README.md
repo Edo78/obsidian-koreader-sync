@@ -34,5 +34,67 @@ The default value for `keep_in_sync` is `false` so the default behaviour is that
 
 If you modify your notes in KOReader and want them to be synced in obsidian you have to enable the `Keep in sync` setting **OR** to manually change the `keep_in_sync` frontmatter of a specific note from `false` to `true` and if the `yet_to_be_edited` of that note is `true` then the note will be deleted and recreated.
 
+## Dataview examples
+Thanks to the frontmatter data in each note you can use [Dataview](https://github.com/blacksmithgu/obsidian-dataview) to easily query your notes
+
+### Books
+~~~markdown
+```dataview
+list
+where koreader-sync
+group by koreader-sync.data.title
+```
+~~~
+
+### Chapters of a specific book (with notes in them)
+~~~markdown
+```dataview
+list
+where koreader-sync.data.title = "How to Take Smart Notes: One Simple Technique to Boost Writing, Learning and Thinking - for Students, Academics and Nonfiction Book Writers"
+group by koreader-sync.data.chapter
+```
+~~~
+
+### Notes of a specific chapter of a specific book
+~~~markdown
+```dataview
+list
+where koreader-sync.data.title = "How to Take Smart Notes: One Simple Technique to Boost Writing, Learning and Thinking - for Students, Academics and Nonfiction Book Writers" and koreader-sync.data.chapter = "Introduction"
+```
+~~~
+
+### Text of notes of a specific book (without a link to the note and only where text is present)
+~~~markdown
+```dataview
+list without id koreader-sync.data.text
+where koreader-sync.data.title = "How to Take Smart Notes: One Simple Technique to Boost Writing, Learning and Thinking - for Students, Academics and Nonfiction Book Writers"
+where koreader-sync.data.text
+```
+~~~
+
+### List of notes yet to be edited
+~~~markdown
+```dataview
+list 
+where koreader-sync.metadata.yet_to_be_edited
+```
+~~~
+
+### List of notes that should be kept in sync
+~~~markdown
+```dataview
+list 
+where koreader-sync.metadata.keep_in_sync
+```
+~~~
+
+### List of notes that will be kept in sync
+~~~markdown
+```dataview
+list 
+where koreader-sync.metadata.keep_in_sync and koreader-sync.metadata.yet_to_be_edited
+```
+~~~
+
 [1]: https://koreader.rocks/
 [2]: https://obsidian.md
