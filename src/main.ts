@@ -83,7 +83,7 @@ export default class KOReader extends Plugin {
     this.addSettingTab(new KoreaderSettingTab(this.app, this));
   }
 
-  onunload() {}
+  onunload() { }
 
   async loadSettings() {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
@@ -109,9 +109,9 @@ export default class KOReader extends Plugin {
     const noteTitle = noteItself
       ? this.manageTitle(noteItself, this.settings.noteTitleOptions)
       : `${this.manageTitle(
-          bookmark.notes,
-          this.settings.noteTitleOptions
-        )} - ${book.authors}`;
+        bookmark.notes,
+        this.settings.noteTitleOptions
+      )} - ${book.authors}`;
     const notePath = normalizePath(`${path}/${noteTitle}`);
 
     const content = `# Title: [[${normalizePath(
@@ -133,6 +133,7 @@ ${noteItself}
           chapter: bookmark.chapter,
           highlight: bookmark.notes,
           datetime: bookmark.datetime,
+          text: noteItself,
         },
         metadata: {
           body_hash: crypto.createHash('md5').update(content).digest('hex'),
