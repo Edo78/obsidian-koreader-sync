@@ -125,7 +125,7 @@ ${noteItself}
 `;
 
     const frontmatterData: { [key: string]: FrontMatter } = {
-      KOREADERKEY: {
+      [KOREADERKEY]: {
         uniqueId,
         data: {
           title: book.title,
@@ -159,10 +159,10 @@ ${noteItself}
     } = {};
     this.app.vault.getMarkdownFiles().forEach((f) => {
       const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
-      if (fm?.KOREADERKEY?.uniqueId) {
-        existingNotes[fm.KOREADERKEY.uniqueId] = {
-          keep_in_sync: fm.KOREADERKEY.metadata.keep_in_sync,
-          yet_to_be_edited: fm.KOREADERKEY.metadata.yet_to_be_edited,
+      if (fm?.[KOREADERKEY]?.uniqueId) {
+        existingNotes[fm[KOREADERKEY].uniqueId] = {
+          keep_in_sync: fm[KOREADERKEY].metadata.keep_in_sync,
+          yet_to_be_edited: fm[KOREADERKEY].metadata.yet_to_be_edited,
           note: f,
         };
       }
