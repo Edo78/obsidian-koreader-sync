@@ -112,8 +112,8 @@ export default class KOReader extends Plugin {
   }) {
     const { path, uniqueId, bookmark, managedBookTitle, book, keepInSync } =
       note;
-    // the page is always the first number in the bookmark's text (eg. 'Pagine 12 foo bar')
-    const page = parseInt(bookmark.text.match(/\d+/g)[0]);
+    // the page is always the first number in the bookmark's text (eg. 'Pagina 12 foo bar')
+    const page = bookmark.text ? parseInt(bookmark.text.match(/\d+/g)[0]) : -1;
     const noteItself = bookmark.text
       ? bookmark.text.split(bookmark.datetime)[1].replace(/^\s+|\s+$/g, '')
       : '';
