@@ -22,12 +22,14 @@ interface KOReaderSettings {
   aFolderForEachBook: boolean;
   customTemplate: boolean;
   templatePath?: string;
+  createDataviewQuery: boolean;
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
   keepInSync: false,
   aFolderForEachBook: false,
   customTemplate: false,
+  createDataviewQuery: false,
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
   noteTitleOptions: {
@@ -125,11 +127,11 @@ export default class KOReader extends Plugin {
         )} - ${book.authors}`;
     const notePath = normalizePath(`${path}/${noteTitle}`);
 
-    const defaultTemplate = `# Title: [[<%= it.bookPath %>|<%= it.title %>]]
+    const defaultTemplate = `## Title: [[<%= it.bookPath %>|<%= it.title %>]]
 
-by: [[<%= it.authors %>]]
+### by: [[<%= it.authors %>]]
 
-## Chapter: <%= it.chapter %>
+### Chapter: <%= it.chapter %>
 
 Page: <%= it.page %>
 
@@ -143,8 +145,9 @@ Page: <%= it.page %>
     const template = templateFile
       ? await this.app.vault.read(templateFile as TFile)
       : defaultTemplate;
+    const bookPath = normalizePath(`${path}/${managedBookTitle}`);
     const content = (await eta.render(template, {
-      bookPath: normalizePath(`${path}/${managedBookTitle}`),
+      bookPath,
       title: book.title,
       authors: book.authors,
       chapter: bookmark.chapter,
@@ -156,6 +159,7 @@ Page: <%= it.page %>
 
     const frontmatterData: { [key: string]: FrontMatter } = {
       [KOREADERKEY]: {
+        type: 'koreader-sync-note',
         uniqueId,
         data: {
           title: book.title,
@@ -170,11 +174,45 @@ Page: <%= it.page %>
           body_hash: crypto.createHash('md5').update(content).digest('hex'),
           keep_in_sync: keepInSync || this.settings.keepInSync,
           yet_to_be_edited: true,
+          managed_book_title: managedBookTitle,
         },
       },
     };
 
     return { content, frontmatterData, notePath };
+  }
+
+  async createDataviewQueryPerBook(dataview: {
+    path: string;
+    managedBookTitle: string;
+    title: string;
+  }) {
+    const { path, title, managedBookTitle } = dataview;
+    const frontMatter = {
+      cssclass: 'koreader-sync-dataview',
+      [KOREADERKEY]: {
+        type: 'koreader-sync-dataview',
+        managed_title: managedBookTitle,
+      },
+    };
+    console.log('frontMatter', frontMatter);
+    const defaultTemplate = `# Title: <%= it.title %>
+
+\`\`\`dataviewjs
+const title = dv.current()['koreader-sync'].managed_title
+dv.pages().where(n => {
+return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && n['koreader-sync'].metadata.managed_book_title == title
+}).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
+\`\`\`
+    `;
+    const template = defaultTemplate;
+    const content = (await eta.render(template, {
+      title,
+    })) as string;
+    this.app.vault.create(
+      `${path}/${managedBookTitle}.md`,
+      matter.stringify(content, frontMatter)
+    );
   }
 
   async importNotes(evt: MouseEvent) {
@@ -205,15 +243,31 @@ Page: <%= it.page %>
         data[book].title,
         this.settings.bookTitleOptions
       )}-${data[book].authors}`;
+      // if the setting aFolderForEachBook is true, we add the managedBookTitle to the path specified in obsidianNoteFolder
+      const path = this.settings.aFolderForEachBook
+        ? `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
+        : this.settings.obsidianNoteFolder;
       // if aFolderForEachBook is set, create a folder for each book
       if (this.settings.aFolderForEachBook) {
-        const bookFolder = normalizePath(
-          `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
-        );
-        if (!this.app.vault.getAbstractFileByPath(bookFolder)) {
-          this.app.vault.createFolder(bookFolder);
+        if (!this.app.vault.getAbstractFileByPath(path)) {
+          this.app.vault.createFolder(path);
         }
       }
+      // if createDataviewQuery is set, create a dataview query, for each book, with the book's managed title (if it doesn't exist)
+      if (
+        this.settings.createDataviewQuery &&
+        !this.app.vault.getAbstractFileByPath(`${path}/${managedBookTitle}.md`)
+      ) {
+        console.log(
+          `Creating dataview query in ${path}/${managedBookTitle}.md`
+        );
+        this.createDataviewQueryPerBook({
+          path,
+          managedBookTitle,
+          title: data[book].title,
+        });
+      }
+
       for (const bookmark in data[book].bookmarks) {
         const uniqueId = crypto
           .createHash('md5')
@@ -233,10 +287,7 @@ Page: <%= it.page %>
             continue;
           }
         }
-        // if the setting aFolderForEachBook is true, we add the managedBookTitle to the path specified in obsidianNoteFolder
-        const path = this.settings.aFolderForEachBook
-          ? `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
-          : this.settings.obsidianNoteFolder;
+
         const { content, frontmatterData, notePath } = await this.createNote({
           path,
           uniqueId,
@@ -345,7 +396,7 @@ class KoreaderSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl('h2', { text: 'Template settings' });
+    containerEl.createEl('h2', { text: 'View settings' });
 
     new Setting(containerEl)
       .setName('Custom template')
@@ -368,6 +419,35 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.templatePath)
           .onChange(async (value) => {
             this.plugin.settings.templatePath = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Create a dataview query')
+      .setDesc(
+        createFragment((frag) => {
+          frag.appendText(
+            'Create a note (for each book) with a dataview query (read the '
+          );
+          frag.createEl(
+            'a',
+            {
+              text: 'documentation',
+              href: 'https://github.com/Edo78/obsidian-koreader-sync#dateview-embedded',
+            },
+            (a) => {
+              a.setAttr('target', '_blank');
+            }
+          );
+          frag.appendText(')');
+        })
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.createDataviewQuery)
+          .onChange(async (value) => {
+            this.plugin.settings.createDataviewQuery = value;
             await this.plugin.saveSettings();
           })
       );

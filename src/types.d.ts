@@ -38,9 +38,11 @@ export interface FrontMatterMetadata {
   body_hash: string;
   keep_in_sync: boolean;
   yet_to_be_edited: boolean;
+  managed_book_title: string;
 }
 
 export interface FrontMatter {
+  type: string;
   uniqueId: string;
   data: FrontMatterData,
   metadata: FrontMatterMetadata,
