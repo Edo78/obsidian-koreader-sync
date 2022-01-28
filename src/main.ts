@@ -22,12 +22,14 @@ interface KOReaderSettings {
   aFolderForEachBook: boolean;
   customTemplate: boolean;
   templatePath?: string;
+  createDataviewQuery: boolean;
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
   keepInSync: false,
   aFolderForEachBook: false,
   customTemplate: false,
+  createDataviewQuery: false,
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
   noteTitleOptions: {
@@ -345,7 +347,7 @@ class KoreaderSettingTab extends PluginSettingTab {
           })
       );
 
-    containerEl.createEl('h2', { text: 'Template settings' });
+    containerEl.createEl('h2', { text: 'View settings' });
 
     new Setting(containerEl)
       .setName('Custom template')
@@ -368,6 +370,35 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.templatePath)
           .onChange(async (value) => {
             this.plugin.settings.templatePath = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Create a dataview query')
+      .setDesc(
+        createFragment((frag) => {
+          frag.appendText(
+            'Create a note (for each book) with a dataview query (read the '
+          );
+          frag.createEl(
+            'a',
+            {
+              text: 'documentation',
+              href: 'https://github.com/Edo78/obsidian-koreader-sync#dateview',
+            },
+            (a) => {
+              a.setAttr('target', '_blank');
+            }
+          );
+          frag.appendText(')');
+        })
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.createDataviewQuery)
+          .onChange(async (value) => {
+            this.plugin.settings.createDataviewQuery = value;
             await this.plugin.saveSettings();
           })
       );
