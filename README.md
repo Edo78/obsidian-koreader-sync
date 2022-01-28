@@ -10,15 +10,15 @@ There ara four main settings:
 - `Keep in sync` that define if the plugin **should** keep the notes in sync with KOReader importing them again (see [sync](#sync))
 - `Create a folder for each book` if you are a fan of folders enabling this setting the **new notes** will be created in a subfolder named as the book itself
 
-### Template configuration
+### View configuration
 The plugin use [Eta.js](https://eta.js.org/) as template engine to create the body of the note (the same used from the plugin [Templater](https://github.com/SilentVoid13/Templater)).
 The default template is pretty minimal
 ```
-# Title: [[<%= it.bookPath %>|<%= it.title %>]]
+## Title: [[<%= it.bookPath %>|<%= it.title %>]]
 
-by: [[<%= it.authors %>]]
+### by: [[<%= it.authors %>]]
 
-## Chapter: <%= it.chapter %>
+### Chapter: <%= it.chapter %>
 
 Page: <%= it.page %>
 
@@ -26,7 +26,7 @@ Page: <%= it.page %>
 
 <%= it.text %>
 ```
-In the `Template settings` section you can found the the option to use a custom template. If you chose to do so you must create a `.md` file in the vault and write your template in it (I suggest to copy the default in it as a starting point) and write the full path in `Template file`
+In the `View settings` section you can found the the option to use a custom template. If you chose to do so you must create a `.md` file in the vault and write your template in it (I suggest to copy the default in it as a starting point) and write the path in `Template file`
 
 The template receive the following arguments:
 - `bookPath`: koreader/(book) How to Take Smart Notes_... {book suffix}-Sönke Ahrens
@@ -36,6 +36,15 @@ The template receive the following arguments:
 - `highlight`: Clance and Imes 1978; Brems et al. 1994
 - `text`: Clance (1978) first identified the Impostor Phenomenon in therapeutic sessions with highly successful women who attributed achievements to external factors
 - `datetime`: 2022-01-22 09:57:29
+- `page`: 19
+
+#### Dataview embedded
+Besides a native support for [Dataview](https://github.com/blacksmithgu/obsidian-dataview) (look at the [example](#dataview-examples)) the plugin let the user chose to automatically create a note for each book with a dataview query inside.
+The note is created in the same folder of the notes of the book but can be moved and renamed and Obsidian will take care of updating the links.
+To use this feature Dataview needs to be installed and its `Enable JavaScript Queries` must be enabled.
+The query itself will embed the single notes and a CSS will hide every `h2` and `h3` tags (with the default template this will hide the title, the author and the chapter).
+
+**ATTENTION**: this feature require at least Obsidian v0.13.19 but there is a glitch that sometimes show only the filename of the notes instead of their contents. Try to close the note and open it again (sorry, not my fault)
 
 ## Usage
 Once the plugin is configured properly you can plug the device with KOReader and click on the icon with two documents and the tooltip `KOReader Plugin`. The plugin should propmplty create a single file for each note.
@@ -62,7 +71,7 @@ The default value for `keep_in_sync` is `false` so the default behaviour is that
 If you modify your notes in KOReader and want them to be synced in obsidian you have to enable the `Keep in sync` setting **OR** to manually change the `keep_in_sync` frontmatter of a specific note from `false` to `true` and if the `yet_to_be_edited` of that note is `true` then the note will be deleted and recreated.
 
 ## Dataview examples
-Thanks to the frontmatter data in each note you can use [Dataview](https://github.com/blacksmithgu/obsidian-dataview) to easily query your notes
+Thanks to the frontmatter data in each note you can use Dataview to easily query your notes
 
 ### Books
 ~~~markdown

@@ -1,0 +1,8 @@
+/* This stile hide the title of embedded notes only if the container has a frontmatter like this
+---
+cssclass: koreader-sync
+---
+*/
+.koreader-sync-dataview .markdown-embed-title, .koreader-sync-dataview h2, .koreader-sync-dataview h3 {
+  display: none;
+}
