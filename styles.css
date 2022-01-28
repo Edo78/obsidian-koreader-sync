@@ -3,6 +3,6 @@
 cssclass: koreader-sync
 ---
 */
-.koreader-sync .markdown-embed-title {
+.koreader-sync-dataview .markdown-embed-title, .koreader-sync-dataview h2, .koreader-sync-dataview h3 {
   display: none;
 }
