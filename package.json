@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-koreader-plugin",
-	"version": "0.2.2",
+	"version": "0.3.0",
 	"description": "This is a plugin for Obsidian. This plugin syncs highlights and notes taken in KOReader.",
 	"main": "main.js",
 	"scripts": {
