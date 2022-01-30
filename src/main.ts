@@ -1,16 +1,20 @@
+import * as crypto from 'crypto';
+import * as eta from 'eta';
+
 import {
   App,
+  Editor,
+  MarkdownView,
   Plugin,
   PluginSettingTab,
   Setting,
-  normalizePath,
   TAbstractFile,
   TFile,
+  normalizePath,
 } from 'obsidian';
-import * as matter from 'gray-matter';
-import * as crypto from 'crypto';
-import * as eta from 'eta';
+import matter from 'gray-matter';
 import { Book, Bookmark, Books, FrontMatter } from './types';
+
 import { KOReaderMetadata } from './koreader-metadata';
 
 interface KOReaderSettings {
@@ -87,9 +91,65 @@ export default class KOReader extends Plugin {
 
     const ribbonIconEl = this.addRibbonIcon(
       'documents',
-      'KOReader Plugin',
+      'Sync your KOReader highlights',
       this.importNotes.bind(this)
     );
+
+    this.addCommand({
+      id: 'obsidian-koreader-plugin-sync',
+      name: 'Sync',
+      callback: () => {
+        this.importNotes();
+      },
+    });
+
+    this.addCommand({
+      id: 'obsidian-koreader-plugin-set-edit',
+      name: 'Mark this note as Edited',
+      editorCallback: (editor: Editor, view: MarkdownView) => {
+        this.setFrontmatterProperty(
+          `${[KOREADERKEY]}.metadata.yet_to_be_edited`,
+          false,
+          view
+        );
+      },
+    });
+
+    this.addCommand({
+      id: 'obsidian-koreader-plugin-clear-edit',
+      name: 'Mark this note as NOT Edited',
+      editorCallback: (editor: Editor, view: MarkdownView) => {
+        this.setFrontmatterProperty(
+          `${[KOREADERKEY]}.metadata.yet_to_be_edited`,
+          true,
+          view
+        );
+      },
+    });
+
+    this.addCommand({
+      id: 'obsidian-koreader-plugin-set-sync',
+      name: 'Enable Sync for this note',
+      editorCallback: (editor: Editor, view: MarkdownView) => {
+        this.setFrontmatterProperty(
+          `${[KOREADERKEY]}.metadata.keep_in_sync`,
+          true,
+          view
+        );
+      },
+    });
+
+    this.addCommand({
+      id: 'obsidian-koreader-plugin-clear-sync',
+      name: 'Disable Sync for this note',
+      editorCallback: (editor: Editor, view: MarkdownView) => {
+        this.setFrontmatterProperty(
+          `${[KOREADERKEY]}.metadata.keep_in_sync`,
+          false,
+          view
+        );
+      },
+    });
 
     this.addSettingTab(new KoreaderSettingTab(this.app, this));
   }
@@ -102,6 +162,48 @@ export default class KOReader extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  private getObjectProperty(object: { [x: string]: any }, path: string) {
+    if (path === undefined || path === null) {
+      return object;
+    }
+    const parts = path.split('.');
+    for (let i = 0; i < parts.length; ++i) {
+      if (object === undefined || object === null) {
+        return undefined;
+      }
+      const key = parts[i];
+      object = object[key];
+    }
+    return object;
+  }
+
+  private setObjectProperty(
+    object: { [x: string]: any },
+    path: string,
+    value: any
+  ) {
+    const parts = path.split('.');
+    const limit = parts.length - 1;
+    for (let i = 0; i < limit; ++i) {
+      const key = parts[i];
+      object = object[key] ?? (object[key] = {});
+    }
+    const key = parts[limit];
+    object[key] = value;
+  }
+
+  async setFrontmatterProperty(
+    property: string,
+    value: any,
+    view: MarkdownView
+  ) {
+    const { data, content } = matter(view.data);
+    this.setObjectProperty(data, property, value);
+    const val = this.getObjectProperty(data, property);
+    const note = matter.stringify(content, data);
+    view.setViewData(note, false);
   }
 
   private async createNote(note: {
@@ -215,7 +317,7 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
     );
   }
 
-  async importNotes(evt: MouseEvent) {
+  async importNotes() {
     const metadata = new KOReaderMetadata(this.settings.koreaderBasePath);
     const data: Books = await metadata.scan();
 

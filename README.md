@@ -2,6 +2,13 @@
 
 Sync [KOReader][1] notes in your [Obsidian][2] vault. The KOReader device must be connected to the device running obsidian to let the plugin scan through it's files.
 
+In the beginning of each note there a series of YAML data knwon as Frontmatter. Those data are mainly used by the plugin itself (you can use them as shown in [dataview examples](#dataview-examples)) but messing with them will cause unexpected behaviour so use the provided [commands](#commands) to properly interact with them.
+
+When you're comfy reading your notes in obsidian think about how useful is this plugin to you and express your gratitude with a tweet or with a coffee :coffee:
+
+[![Twitter URL](https://img.shields.io/twitter/url?style=social&url=https%3A%2F%2Ftwitter.com%2Fintent%2Ftweet%3Ftext%3DI%2527m%2520enjoying%2520%2540Edo78%2527s%2520%2523Obsidian%2520plugin%2520to%2520sync%2520my%2520%2523KOReader%2520notes.%250AThank%2520you%2520for%2520your%2520great%2520work.%250A%250Ahttps%253A%252F%252Fgithub.com%252FEdo78%252Fobsidian-koreader-sync)](https://twitter.com/intent/tweet?text=I%27m%20enjoying%20%40Edo78%27s%20%23Obsidian%20plugin%20to%20sync%20my%20%23KOReader%20notes.%0AThank%20you%20for%20your%20great%20work.%0A%0Ahttps%3A%2F%2Fgithub.com%2FEdo78%2Fobsidian-koreader-sync)
+<a href="https://www.buymeacoffee.com/Edo78" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
 ## Configuration
 
 There ara four main settings:
@@ -47,12 +54,19 @@ The query itself will embed the single notes and a CSS will hide every `h2` and 
 **ATTENTION**: this feature require at least Obsidian v0.13.19 but there is a glitch that sometimes show only the filename of the notes instead of their contents. Try to close the note and open it again (sorry, not my fault)
 
 ## Usage
-Once the plugin is configured properly you can plug the device with KOReader and click on the icon with two documents and the tooltip `KOReader Plugin`. The plugin should propmplty create a single file for each note.
+Once the plugin is configured properly you can plug the device with KOReader and click on the icon with two documents and the tooltip `Sync your KOReader highlights`. The plugin should propmplty create a single file for each note.
 
-Create an issue if something didn't work as expected.
+### Commands
+There are five commands:
+- `Sync` it's the same as clicking on the plugin's icon, it's trigger the sync of the notes
+- `Mark this note as Edited` set the frontmatter propery `yet_to_be_edited` to `false` (see [Note editing](#note-editing))
+- `Mark this note as NOT Edited` set the frontmatter propery `yet_to_be_edited` to `true` (see [Note editing](#note-editing))
+- `Enable Sync for this note` set the frontmatter propery `keep_in_sync` to `true` (see [sync](#sync))
+- `Disable Sync for this note` set the frontmatter propery `keep_in_sync` to `false` (see [sync](#sync))
 
 ### Note editing
 If you chose to manually edit a note you are strongly raccomanded to change the frontmatter `yet_to_be_edited` value from `true` to `false` to let the plugin know that you altered something and to avoid any loss in case of [sync](#sync)
+It's easier/safer to use the proper [commands](#commands) to do so instead of manually editing the frontmatter
 
 ### Sync
 **WARNING** Sync works by deleting a note and creating it again from KOReader. Anything added or updated (in Obsidian) will be lost _like tears in rain_. Consider yourself warned.
@@ -68,7 +82,7 @@ Both needs to be `true` for the note to be synced.
 
 The default value for `keep_in_sync` is `false` so the default behaviour is that once a note is in obsidian it will never be synced again.
 
-If you modify your notes in KOReader and want them to be synced in obsidian you have to enable the `Keep in sync` setting **OR** to manually change the `keep_in_sync` frontmatter of a specific note from `false` to `true` and if the `yet_to_be_edited` of that note is `true` then the note will be deleted and recreated.
+If you modify your notes in KOReader and want them to be synced in obsidian you have to enable the `Keep in sync` setting **OR** use the proper [commands](#commands) to change the `keep_in_sync` frontmatter of a specific note from `false` to `true` and if the `yet_to_be_edited` of that note is `true` then the note will be deleted and recreated.
 
 ## Dataview examples
 Thanks to the frontmatter data in each note you can use Dataview to easily query your notes
