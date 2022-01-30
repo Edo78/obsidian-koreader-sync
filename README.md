@@ -17,6 +17,12 @@ There ara four main settings:
 - `Keep in sync` that define if the plugin **should** keep the notes in sync with KOReader importing them again (see [sync](#sync))
 - `Create a folder for each book` if you are a fan of folders enabling this setting the **new notes** will be created in a subfolder named as the book itself
 
+### Danger Zone
+
+This area contains settings that can be useful in a very few edga cases and can be dangerous in a day to day usage.
+
+- `Enable reset of imported notes` enable a one shot execution of the [command](#commands) `Reset Sync List`
+
 ### View configuration
 The plugin use [Eta.js](https://eta.js.org/) as template engine to create the body of the note (the same used from the plugin [Templater](https://github.com/SilentVoid13/Templater)).
 The default template is pretty minimal
@@ -59,6 +65,7 @@ Once the plugin is configured properly you can plug the device with KOReader and
 ### Commands
 There are five commands:
 - `Sync` it's the same as clicking on the plugin's icon, it's trigger the sync of the notes
+- `Reset Sync List` empty the list of imported notes (see [Danger Zone](#danger-zone)). Always try to retrieve the deleted notes from trash before using this command because all the rightfully discarded notes will be imported again. This command will also disable itself so you have to enable in the settings again if you wish to use it again.
 - `Mark this note as Edited` set the frontmatter propery `yet_to_be_edited` to `false` (see [Note editing](#note-editing))
 - `Mark this note as NOT Edited` set the frontmatter propery `yet_to_be_edited` to `true` (see [Note editing](#note-editing))
 - `Enable Sync for this note` set the frontmatter propery `keep_in_sync` to `true` (see [sync](#sync))
