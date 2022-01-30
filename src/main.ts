@@ -27,9 +27,13 @@ interface KOReaderSettings {
   customTemplate: boolean;
   templatePath?: string;
   createDataviewQuery: boolean;
+  importedNotes: { [key: string]: boolean };
+  enbleResetImportedNotes: boolean;
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
+  importedNotes: {},
+  enbleResetImportedNotes: false,
   keepInSync: false,
   aFolderForEachBook: false,
   customTemplate: false,
@@ -151,6 +155,22 @@ export default class KOReader extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: 'obsidian-koreader-plugin-reset-sync-list',
+      name: 'Reset Sync List',
+      checkCallback: (checking: boolean) => {
+        if (this.settings.enbleResetImportedNotes) {
+          if (!checking) {
+            this.resetSyncList();
+            this.settings.enbleResetImportedNotes = false;
+            this.saveSettings();
+          }
+          return true;
+        }
+        return false;
+      },
+    });
+
     this.addSettingTab(new KoreaderSettingTab(this.app, this));
   }
 
@@ -162,6 +182,11 @@ export default class KOReader extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+
+  private async resetSyncList() {
+    this.settings.importedNotes = {};
+    await this.saveSettings();
   }
 
   private getObjectProperty(object: { [x: string]: any }, path: string) {
@@ -204,6 +229,7 @@ export default class KOReader extends Plugin {
     const val = this.getObjectProperty(data, property);
     const note = matter.stringify(content, data);
     view.setViewData(note, false);
+    view.requestSave();
   }
 
   private async createNote(note: {
@@ -297,7 +323,7 @@ Page: <%= it.page %>
         managed_title: managedBookTitle,
       },
     };
-    console.log('frontMatter', frontMatter);
+
     const defaultTemplate = `# Title: <%= it.title %>
 
 \`\`\`dataviewjs
@@ -360,9 +386,6 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
         this.settings.createDataviewQuery &&
         !this.app.vault.getAbstractFileByPath(`${path}/${managedBookTitle}.md`)
       ) {
-        console.log(
-          `Creating dataview query in ${path}/${managedBookTitle}.md`
-        );
         this.createDataviewQueryPerBook({
           path,
           managedBookTitle,
@@ -371,6 +394,7 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
       }
 
       for (const bookmark in data[book].bookmarks) {
+        const updateNote: boolean = false;
         const uniqueId = crypto
           .createHash('md5')
           .update(
@@ -378,34 +402,49 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
           )
           .digest('hex');
 
-        if (Object.keys(existingNotes).includes(uniqueId)) {
-          // if the user wants to keep the note in sync, we delete only if the note is not yet_to_be_edited
-          if (
-            existingNotes[uniqueId].keep_in_sync &&
-            existingNotes[uniqueId].yet_to_be_edited
-          ) {
-            this.app.vault.delete(existingNotes[uniqueId].note);
-          } else {
-            continue;
+        // if the note is not yet imported, we create it
+        if (!Object.keys(this.settings.importedNotes).includes(uniqueId)) {
+          if (!Object.keys(existingNotes).includes(uniqueId)) {
+            const { content, frontmatterData, notePath } =
+              await this.createNote({
+                path,
+                uniqueId,
+                bookmark: data[book].bookmarks[bookmark],
+                managedBookTitle,
+                book: data[book],
+                keepInSync: this.settings.keepInSync,
+              });
+
+            this.app.vault.create(
+              `${notePath}.md`,
+              matter.stringify(content, frontmatterData)
+            );
           }
+          this.settings.importedNotes[uniqueId] = true;
+          // else if the note exists and keep_in_sync is true and yet_to_be_edited is false, we update it
+        } else if (
+          Object.keys(existingNotes).includes(uniqueId) &&
+          existingNotes[uniqueId].keep_in_sync &&
+          !existingNotes[uniqueId].yet_to_be_edited
+        ) {
+          const note = existingNotes[uniqueId].note as TFile;
+          const { content, frontmatterData, notePath } = await this.createNote({
+            path,
+            uniqueId,
+            bookmark: data[book].bookmarks[bookmark],
+            managedBookTitle,
+            book: data[book],
+            keepInSync: existingNotes[uniqueId]?.keep_in_sync,
+          });
+
+          this.app.vault.modify(
+            note,
+            matter.stringify(content, frontmatterData)
+          );
         }
-
-        const { content, frontmatterData, notePath } = await this.createNote({
-          path,
-          uniqueId,
-          bookmark: data[book].bookmarks[bookmark],
-          managedBookTitle,
-          book: data[book],
-          keepInSync:
-            existingNotes[uniqueId]?.keep_in_sync || this.settings.keepInSync,
-        });
-
-        this.app.vault.create(
-          `${notePath}.md`,
-          matter.stringify(content, frontmatterData)
-        );
       }
     }
+    await this.saveSettings();
   }
 }
 
@@ -652,6 +691,22 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.bookTitleOptions.maxLength)
           .onChange(async (value) => {
             this.plugin.settings.bookTitleOptions.maxLength = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    containerEl.createEl('h2', { text: 'DANGER ZONE' });
+
+    new Setting(containerEl)
+      .setName('Enable reset of imported notes')
+      .setDesc(
+        "Enable the command to empty the list of imported notes in case you can't recover from the trash one or more notes"
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enbleResetImportedNotes)
+          .onChange(async (value) => {
+            this.plugin.settings.enbleResetImportedNotes = value;
             await this.plugin.saveSettings();
           })
       );
