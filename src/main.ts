@@ -337,7 +337,13 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
 }).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
 \`\`\`
     `;
-    const template = defaultTemplate;
+
+    const templateFile = this.settings.customDataviewTemplate
+      ? this.app.vault.getAbstractFileByPath(this.settings.dataviewTemplatePath)
+      : null;
+    const template = templateFile
+      ? await this.app.vault.read(templateFile as TFile)
+      : defaultTemplate;
     const content = (await eta.render(template, {
       title,
     })) as string;
