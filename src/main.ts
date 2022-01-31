@@ -161,7 +161,7 @@ export default class KOReader extends Plugin {
       checkCallback: (checking: boolean) => {
         if (this.settings.enbleResetImportedNotes) {
           if (!checking) {
-            this.resetSyncList();
+            this.settings.importedNotes = {};
             this.settings.enbleResetImportedNotes = false;
             this.saveSettings();
           }
@@ -182,11 +182,6 @@ export default class KOReader extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
-  }
-
-  private async resetSyncList() {
-    this.settings.importedNotes = {};
-    await this.saveSettings();
   }
 
   private getObjectProperty(object: { [x: string]: any }, path: string) {
@@ -314,18 +309,24 @@ Page: <%= it.page %>
     path: string;
     managedBookTitle: string;
     title: string;
+    percent_finished: number;
   }) {
-    const { path, title, managedBookTitle } = dataview;
+    const { path, title, managedBookTitle, percent_finished } = dataview;
     const frontMatter = {
       cssclass: 'koreader-sync-dataview',
       [KOREADERKEY]: {
         type: 'koreader-sync-dataview',
         managed_title: managedBookTitle,
+        data: {
+          title,
+          percent_finished,
+        },
       },
     };
 
     const defaultTemplate = `# Title: <%= it.title %>
 
+<progress value="${percent_finished}" max="100"> </progress>
 \`\`\`dataviewjs
 const title = dv.current()['koreader-sync'].managed_title
 dv.pages().where(n => {
@@ -390,6 +391,7 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
           path,
           managedBookTitle,
           title: data[book].title,
+          percent_finished: data[book].percent_finished * 100,
         });
       }
 

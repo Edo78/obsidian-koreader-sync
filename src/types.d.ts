@@ -18,6 +18,7 @@ export interface Book {
   authors: string;
   bookmarks: Bookmarks;
   highlight: any;
+  percent_finished: number;
 }
 
 export interface Books {
