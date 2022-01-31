@@ -336,30 +336,53 @@ Page: <%= it.page %>
     return { content, frontmatterData, notePath };
   }
 
-  async createDataviewQueryPerBook(dataview: {
-    path: string;
-    managedBookTitle: string;
-    title: string;
-    percent_finished: number;
-  }) {
-    const { path, title, managedBookTitle, percent_finished } = dataview;
+  async createDataviewQueryPerBook(
+    dataview: {
+      path: string;
+      managedBookTitle: string;
+      book: Book;
+    },
+    updateNote?: TFile
+  ) {
+    const { path, book, managedBookTitle } = dataview;
+    let { keepInSync } = this.settings;
+    if (updateNote) {
+      const { data, content } = matter(
+        await this.app.vault.read(updateNote),
+        {}
+      );
+      keepInSync = data[KOREADERKEY].metadata.keep_in_sync;
+      const yetToBeEdited = data[KOREADERKEY].metadata.yet_to_be_edited;
+      if (!keepInSync || !yetToBeEdited) {
+        return;
+      }
+    }
     const frontMatter = {
       cssclass: 'koreader-sync-dataview',
       [KOREADERKEY]: {
+        uniqueId: crypto
+          .createHash('md5')
+          .update(`${book.title} - ${book.authors}}`)
+          .digest('hex'),
         type: 'koreader-sync-dataview',
-        managed_title: managedBookTitle,
         data: {
-          title,
-          percent_finished,
+          title: book.title,
+          authors: book.authors,
+        },
+        metadata: {
+          percent_finished: book.percent_finished,
+          managed_title: managedBookTitle,
+          keep_in_sync: keepInSync,
+          yet_to_be_edited: true,
         },
       },
     };
 
-    const defaultTemplate = `# Title: <%= it.title %>
+    const defaultTemplate = `# Title: <%= it.data.title %>
 
-<progress value="${percent_finished}" max="100"> </progress>
+<progress value="<%= it.metadata.percent_finished %>" max="100"> </progress>
 \`\`\`dataviewjs
-const title = dv.current()['koreader-sync'].managed_title
+const title = dv.current()['koreader-sync'].metadata.managed_title
 dv.pages().where(n => {
 return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && n['koreader-sync'].metadata.managed_book_title == title
 }).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
@@ -372,13 +395,18 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
     const template = templateFile
       ? await this.app.vault.read(templateFile as TFile)
       : defaultTemplate;
-    const content = (await eta.render(template, {
-      title,
-    })) as string;
-    this.app.vault.create(
-      `${path}/${managedBookTitle}.md`,
-      matter.stringify(content, frontMatter)
-    );
+    const content = (await eta.render(
+      template,
+      frontMatter[KOREADERKEY]
+    )) as string;
+    if (updateNote) {
+      this.app.vault.modify(updateNote, matter.stringify(content, frontMatter));
+    } else {
+      this.app.vault.create(
+        `${path}/${managedBookTitle}.md`,
+        matter.stringify(content, frontMatter)
+      );
+    }
   }
 
   async importNotes() {
@@ -420,16 +448,17 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
         }
       }
       // if createDataviewQuery is set, create a dataview query, for each book, with the book's managed title (if it doesn't exist)
-      if (
-        this.settings.createDataviewQuery &&
-        !this.app.vault.getAbstractFileByPath(`${path}/${managedBookTitle}.md`)
-      ) {
-        this.createDataviewQueryPerBook({
-          path,
-          managedBookTitle,
-          title: data[book].title,
-          percent_finished: data[book].percent_finished * 100,
-        });
+      if (this.settings.createDataviewQuery) {
+        this.createDataviewQueryPerBook(
+          {
+            path,
+            managedBookTitle,
+            book: data[book],
+          },
+          this.app.vault.getAbstractFileByPath(
+            `${path}/${managedBookTitle}.md`
+          ) as TFile
+        );
       }
 
       for (const bookmark in data[book].bookmarks) {
