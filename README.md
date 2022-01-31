@@ -51,6 +51,23 @@ The template receive the following arguments:
 - `datetime`: 2022-01-22 09:57:29
 - `page`: 19
 
+### Book view configuration
+The default template is minimal but complex
+~~~markdown
+# Title: <%= it.data.title %>
+
+<progress value="<%= it.metadata.percent_finished %>" max="100"> </progress>
+```dataviewjs
+const title = dv.current()['koreader-sync'].metadata.managed_title
+dv.pages().where(n => {
+return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && n['koreader-sync'].metadata.managed_book_title == title
+}).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
+```
+~~~
+The core of this template is a js [dataview embedded](#dataview-embedded) query. Don't mess with it if you don't know what you are doing (I don't because I barely know Dataview).
+
+The template receive exactly the same data you can see in the frontmatter. If it's not there you can't use it but you can create an issue asking for it.
+
 #### Dataview embedded
 Besides a native support for [Dataview](https://github.com/blacksmithgu/obsidian-dataview) (look at the [example](#dataview-examples)) the plugin let the user chose to automatically create a note for each book with a dataview query inside.
 The note is created in the same folder of the notes of the book but can be moved and renamed and Obsidian will take care of updating the links.
