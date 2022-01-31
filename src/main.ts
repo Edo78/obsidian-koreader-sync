@@ -25,7 +25,9 @@ interface KOReaderSettings {
   keepInSync: boolean;
   aFolderForEachBook: boolean;
   customTemplate: boolean;
+  customDataviewTemplate: boolean;
   templatePath?: string;
+  dataviewTemplatePath?: string;
   createDataviewQuery: boolean;
   importedNotes: { [key: string]: boolean };
   enbleResetImportedNotes: boolean;
@@ -37,6 +39,7 @@ const DEFAULT_SETTINGS: KOReaderSettings = {
   keepInSync: false,
   aFolderForEachBook: false,
   customTemplate: false,
+  customDataviewTemplate: false,
   createDataviewQuery: false,
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
@@ -334,7 +337,13 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
 }).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
 \`\`\`
     `;
-    const template = defaultTemplate;
+
+    const templateFile = this.settings.customDataviewTemplate
+      ? this.app.vault.getAbstractFileByPath(this.settings.dataviewTemplatePath)
+      : null;
+    const template = templateFile
+      ? await this.app.vault.read(templateFile as TFile)
+      : defaultTemplate;
     const content = (await eta.render(template, {
       title,
     })) as string;
@@ -562,6 +571,31 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.templatePath)
           .onChange(async (value) => {
             this.plugin.settings.templatePath = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Custom book template')
+      .setDesc('Use a custom template for the dataview')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.customDataviewTemplate)
+          .onChange(async (value) => {
+            this.plugin.settings.customDataviewTemplate = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Book template file')
+      .setDesc('The template file to use. Remember to add the ".md" extension')
+      .addText((text) =>
+        text
+          .setPlaceholder('templates/template-book.md')
+          .setValue(this.plugin.settings.dataviewTemplatePath)
+          .onChange(async (value) => {
+            this.plugin.settings.dataviewTemplatePath = value;
             await this.plugin.saveSettings();
           })
       );
