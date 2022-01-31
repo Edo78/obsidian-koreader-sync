@@ -28,6 +28,7 @@ export class KOReaderMetadata {
             bookmarks,
             doc_props: { title },
             doc_props: { authors },
+            percent_finished,
           } = jsonMetadata;
           if (Object.keys(highlight).length && Object.keys(bookmarks).length) {
             metadatas[`${title} - ${authors}`] = {
@@ -35,6 +36,7 @@ export class KOReaderMetadata {
               authors,
               // highlight,
               bookmarks,
+              percent_finished,
             };
           }
         }
