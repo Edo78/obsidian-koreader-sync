@@ -113,48 +113,76 @@ export default class KOReader extends Plugin {
     this.addCommand({
       id: 'obsidian-koreader-plugin-set-edit',
       name: 'Mark this note as Edited',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.yet_to_be_edited`,
-          false,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.yet_to_be_edited`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === true) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, false, view);
       },
     });
 
     this.addCommand({
       id: 'obsidian-koreader-plugin-clear-edit',
       name: 'Mark this note as NOT Edited',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.yet_to_be_edited`,
-          true,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.yet_to_be_edited`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === false) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, true, view);
       },
     });
 
     this.addCommand({
       id: 'obsidian-koreader-plugin-set-sync',
       name: 'Enable Sync for this note',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.keep_in_sync`,
-          true,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.keep_in_sync`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === false) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, true, view);
       },
     });
 
     this.addCommand({
       id: 'obsidian-koreader-plugin-clear-sync',
       name: 'Disable Sync for this note',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.keep_in_sync`,
-          false,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.keep_in_sync`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === true) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, false, view);
       },
     });
 
@@ -217,17 +245,17 @@ export default class KOReader extends Plugin {
     object[key] = value;
   }
 
-  async setFrontmatterProperty(
-    property: string,
-    value: any,
-    view: MarkdownView
-  ) {
-    const { data, content } = matter(view.data);
+  setFrontmatterProperty(property: string, value: any, view: MarkdownView) {
+    const { data, content } = matter(view.data, {});
     this.setObjectProperty(data, property, value);
-    const val = this.getObjectProperty(data, property);
     const note = matter.stringify(content, data);
     view.setViewData(note, false);
     view.requestSave();
+  }
+
+  getFrontmatterProperty(property: string, view: MarkdownView): any {
+    const { data, content } = matter(view.data, {});
+    return this.getObjectProperty(data, property);
   }
 
   private async createNote(note: {
@@ -482,7 +510,6 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setPlaceholder('Enter the path wher KOReader is mounted')
           .setValue(this.plugin.settings.koreaderBasePath)
           .onChange(async (value) => {
-            console.log(`Path: ${value}`);
             this.plugin.settings.koreaderBasePath = value;
             await this.plugin.saveSettings();
           })
