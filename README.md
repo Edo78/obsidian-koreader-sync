@@ -51,6 +51,23 @@ The template receive the following arguments:
 - `datetime`: 2022-01-22 09:57:29
 - `page`: 19
 
+### Book view configuration
+The default template is minimal but complex
+~~~markdown
+# Title: <%= it.data.title %>
+
+<progress value="<%= it.metadata.percent_finished %>" max="100"> </progress>
+```dataviewjs
+const title = dv.current()['koreader-sync'].metadata.managed_title
+dv.pages().where(n => {
+return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && n['koreader-sync'].metadata.managed_book_title == title
+}).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
+```
+~~~
+The core of this template is a js [dataview embedded](#dataview-embedded) query. Don't mess with it if you don't know what you are doing (I don't because I barely know Dataview).
+
+The template receive exactly the same data you can see in the frontmatter. If it's not there you can't use it but you can create an issue asking for it.
+
 #### Dataview embedded
 Besides a native support for [Dataview](https://github.com/blacksmithgu/obsidian-dataview) (look at the [example](#dataview-examples)) the plugin let the user chose to automatically create a note for each book with a dataview query inside.
 The note is created in the same folder of the notes of the book but can be moved and renamed and Obsidian will take care of updating the links.
@@ -63,6 +80,8 @@ The query itself will embed the single notes and a CSS will hide every `h2` and 
 Once the plugin is configured properly you can plug the device with KOReader and click on the icon with two documents and the tooltip `Sync your KOReader highlights`. The plugin should propmplty create a single file for each note.
 
 ### Commands
+**NOTE:** if a command is suppose to set a frontmatter property equal to a certain value then it will be shown only if the open note has such property with a different value.
+ 
 There are five commands:
 - `Sync` it's the same as clicking on the plugin's icon, it's trigger the sync of the notes
 - `Reset Sync List` empty the list of imported notes (see [Danger Zone](#danger-zone)). Always try to retrieve the deleted notes from trash before using this command because all the rightfully discarded notes will be imported again. This command will also disable itself so you have to enable in the settings again if you wish to use it again.

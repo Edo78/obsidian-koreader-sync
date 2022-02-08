@@ -25,7 +25,9 @@ interface KOReaderSettings {
   keepInSync: boolean;
   aFolderForEachBook: boolean;
   customTemplate: boolean;
+  customDataviewTemplate: boolean;
   templatePath?: string;
+  dataviewTemplatePath?: string;
   createDataviewQuery: boolean;
   importedNotes: { [key: string]: boolean };
   enbleResetImportedNotes: boolean;
@@ -37,6 +39,7 @@ const DEFAULT_SETTINGS: KOReaderSettings = {
   keepInSync: false,
   aFolderForEachBook: false,
   customTemplate: false,
+  customDataviewTemplate: false,
   createDataviewQuery: false,
   koreaderBasePath: '/media/user/KOBOeReader',
   obsidianNoteFolder: '/',
@@ -110,48 +113,76 @@ export default class KOReader extends Plugin {
     this.addCommand({
       id: 'obsidian-koreader-plugin-set-edit',
       name: 'Mark this note as Edited',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.yet_to_be_edited`,
-          false,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.yet_to_be_edited`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === true) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, false, view);
       },
     });
 
     this.addCommand({
       id: 'obsidian-koreader-plugin-clear-edit',
       name: 'Mark this note as NOT Edited',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.yet_to_be_edited`,
-          true,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.yet_to_be_edited`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === false) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, true, view);
       },
     });
 
     this.addCommand({
       id: 'obsidian-koreader-plugin-set-sync',
       name: 'Enable Sync for this note',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.keep_in_sync`,
-          true,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.keep_in_sync`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === false) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, true, view);
       },
     });
 
     this.addCommand({
       id: 'obsidian-koreader-plugin-clear-sync',
       name: 'Disable Sync for this note',
-      editorCallback: (editor: Editor, view: MarkdownView) => {
-        this.setFrontmatterProperty(
-          `${[KOREADERKEY]}.metadata.keep_in_sync`,
-          false,
-          view
-        );
+      editorCheckCallback: (
+        checking: boolean,
+        editor: Editor,
+        view: MarkdownView
+      ) => {
+        const propertyPath = `${[KOREADERKEY]}.metadata.keep_in_sync`;
+        if (checking) {
+          if (this.getFrontmatterProperty(propertyPath, view) === true) {
+            return true;
+          }
+          return false;
+        }
+        this.setFrontmatterProperty(propertyPath, false, view);
       },
     });
 
@@ -161,7 +192,7 @@ export default class KOReader extends Plugin {
       checkCallback: (checking: boolean) => {
         if (this.settings.enbleResetImportedNotes) {
           if (!checking) {
-            this.resetSyncList();
+            this.settings.importedNotes = {};
             this.settings.enbleResetImportedNotes = false;
             this.saveSettings();
           }
@@ -182,11 +213,6 @@ export default class KOReader extends Plugin {
 
   async saveSettings() {
     await this.saveData(this.settings);
-  }
-
-  private async resetSyncList() {
-    this.settings.importedNotes = {};
-    await this.saveSettings();
   }
 
   private getObjectProperty(object: { [x: string]: any }, path: string) {
@@ -219,17 +245,17 @@ export default class KOReader extends Plugin {
     object[key] = value;
   }
 
-  async setFrontmatterProperty(
-    property: string,
-    value: any,
-    view: MarkdownView
-  ) {
-    const { data, content } = matter(view.data);
+  setFrontmatterProperty(property: string, value: any, view: MarkdownView) {
+    const { data, content } = matter(view.data, {});
     this.setObjectProperty(data, property, value);
-    const val = this.getObjectProperty(data, property);
     const note = matter.stringify(content, data);
     view.setViewData(note, false);
     view.requestSave();
+  }
+
+  getFrontmatterProperty(property: string, view: MarkdownView): any {
+    const { data, content } = matter(view.data, {});
+    return this.getObjectProperty(data, property);
   }
 
   private async createNote(note: {
@@ -310,37 +336,77 @@ Page: <%= it.page %>
     return { content, frontmatterData, notePath };
   }
 
-  async createDataviewQueryPerBook(dataview: {
-    path: string;
-    managedBookTitle: string;
-    title: string;
-  }) {
-    const { path, title, managedBookTitle } = dataview;
+  async createDataviewQueryPerBook(
+    dataview: {
+      path: string;
+      managedBookTitle: string;
+      book: Book;
+    },
+    updateNote?: TFile
+  ) {
+    const { path, book, managedBookTitle } = dataview;
+    let { keepInSync } = this.settings;
+    if (updateNote) {
+      const { data, content } = matter(
+        await this.app.vault.read(updateNote),
+        {}
+      );
+      keepInSync = data[KOREADERKEY].metadata.keep_in_sync;
+      const yetToBeEdited = data[KOREADERKEY].metadata.yet_to_be_edited;
+      if (!keepInSync || !yetToBeEdited) {
+        return;
+      }
+    }
     const frontMatter = {
       cssclass: 'koreader-sync-dataview',
       [KOREADERKEY]: {
+        uniqueId: crypto
+          .createHash('md5')
+          .update(`${book.title} - ${book.authors}}`)
+          .digest('hex'),
         type: 'koreader-sync-dataview',
-        managed_title: managedBookTitle,
+        data: {
+          title: book.title,
+          authors: book.authors,
+        },
+        metadata: {
+          percent_finished: book.percent_finished,
+          managed_title: managedBookTitle,
+          keep_in_sync: keepInSync,
+          yet_to_be_edited: true,
+        },
       },
     };
 
-    const defaultTemplate = `# Title: <%= it.title %>
+    const defaultTemplate = `# Title: <%= it.data.title %>
 
+<progress value="<%= it.metadata.percent_finished %>" max="100"> </progress>
 \`\`\`dataviewjs
-const title = dv.current()['koreader-sync'].managed_title
+const title = dv.current()['koreader-sync'].metadata.managed_title
 dv.pages().where(n => {
 return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && n['koreader-sync'].metadata.managed_book_title == title
 }).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
 \`\`\`
     `;
-    const template = defaultTemplate;
-    const content = (await eta.render(template, {
-      title,
-    })) as string;
-    this.app.vault.create(
-      `${path}/${managedBookTitle}.md`,
-      matter.stringify(content, frontMatter)
-    );
+
+    const templateFile = this.settings.customDataviewTemplate
+      ? this.app.vault.getAbstractFileByPath(this.settings.dataviewTemplatePath)
+      : null;
+    const template = templateFile
+      ? await this.app.vault.read(templateFile as TFile)
+      : defaultTemplate;
+    const content = (await eta.render(
+      template,
+      frontMatter[KOREADERKEY]
+    )) as string;
+    if (updateNote) {
+      this.app.vault.modify(updateNote, matter.stringify(content, frontMatter));
+    } else {
+      this.app.vault.create(
+        `${path}/${managedBookTitle}.md`,
+        matter.stringify(content, frontMatter)
+      );
+    }
   }
 
   async importNotes() {
@@ -382,15 +448,17 @@ return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && 
         }
       }
       // if createDataviewQuery is set, create a dataview query, for each book, with the book's managed title (if it doesn't exist)
-      if (
-        this.settings.createDataviewQuery &&
-        !this.app.vault.getAbstractFileByPath(`${path}/${managedBookTitle}.md`)
-      ) {
-        this.createDataviewQueryPerBook({
-          path,
-          managedBookTitle,
-          title: data[book].title,
-        });
+      if (this.settings.createDataviewQuery) {
+        this.createDataviewQueryPerBook(
+          {
+            path,
+            managedBookTitle,
+            book: data[book],
+          },
+          this.app.vault.getAbstractFileByPath(
+            `${path}/${managedBookTitle}.md`
+          ) as TFile
+        );
       }
 
       for (const bookmark in data[book].bookmarks) {
@@ -471,7 +539,6 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setPlaceholder('Enter the path wher KOReader is mounted')
           .setValue(this.plugin.settings.koreaderBasePath)
           .onChange(async (value) => {
-            console.log(`Path: ${value}`);
             this.plugin.settings.koreaderBasePath = value;
             await this.plugin.saveSettings();
           })
@@ -560,6 +627,31 @@ class KoreaderSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.templatePath)
           .onChange(async (value) => {
             this.plugin.settings.templatePath = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Custom book template')
+      .setDesc('Use a custom template for the dataview')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.customDataviewTemplate)
+          .onChange(async (value) => {
+            this.plugin.settings.customDataviewTemplate = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName('Book template file')
+      .setDesc('The template file to use. Remember to add the ".md" extension')
+      .addText((text) =>
+        text
+          .setPlaceholder('templates/template-book.md')
+          .setValue(this.plugin.settings.dataviewTemplatePath)
+          .onChange(async (value) => {
+            this.plugin.settings.dataviewTemplatePath = value;
             await this.plugin.saveSettings();
           })
       );

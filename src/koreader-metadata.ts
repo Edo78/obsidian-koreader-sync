@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { Books } from './types';
 import finder from 'node-find-files';
 import { parse } from 'lua-json';
+import { Books } from './types';
 
 export class KOReaderMetadata {
   koreaderBasePath: string;
@@ -28,6 +28,7 @@ export class KOReaderMetadata {
             bookmarks,
             doc_props: { title },
             doc_props: { authors },
+            percent_finished,
           } = jsonMetadata;
           if (Object.keys(highlight).length && Object.keys(bookmarks).length) {
             metadatas[`${title} - ${authors}`] = {
@@ -35,6 +36,7 @@ export class KOReaderMetadata {
               authors,
               // highlight,
               bookmarks,
+              percent_finished: percent_finished * 100,
             };
           }
         }
