@@ -11,11 +11,23 @@ import {
   TAbstractFile,
   TFile,
   normalizePath,
+  Notice,
 } from 'obsidian';
 import matter from 'gray-matter';
+import * as Diff from 'diff';
 import { Book, Bookmark, Books, FrontMatter } from './types';
 
 import { KOReaderMetadata } from './koreader-metadata';
+
+enum ErrorType {
+  NO_PLACEHOLDER_FOUND = 'NO_PLACEHOLDER_FOUND',
+  NO_PLACEHOLDER_NOTE_CREATED = 'NO_PLACEHOLDER_NOTE_CREATED',
+}
+
+enum NoteType {
+  SINGLE_NOTE = 'koreader-sync-note',
+  BOOK_NOTE = 'BOOK_NOTE',
+}
 
 interface KOReaderSettings {
   koreaderBasePath: string;
@@ -62,6 +74,7 @@ interface TitleOptions {
 }
 
 const KOREADERKEY = 'koreader-sync';
+const NOTE_TEXT_PLACEHOLDER = 'placeholder';
 
 export default class KOReader extends Plugin {
   settings: KOReaderSettings;
@@ -95,6 +108,16 @@ export default class KOReader extends Plugin {
       autoEscape: false,
     });
     await this.loadSettings();
+
+    // listen for note changes to update the frontmatter
+    this.app.metadataCache.on('changed', async (file: TAbstractFile) => {
+      try {
+        await this.updateMetadataText(file as TFile);
+      } catch (e) {
+        console.error(e);
+        new Notice(`Error updating metadata text: ${e.message}`);
+      }
+    });
 
     const ribbonIconEl = this.addRibbonIcon(
       'documents',
@@ -215,6 +238,98 @@ export default class KOReader extends Plugin {
     await this.saveData(this.settings);
   }
 
+  private async updateMetadataText(file: TFile) {
+    const originalNote = await this.app.vault.cachedRead(file);
+    const text = await this.extractTextFromNote(originalNote);
+    if (text) {
+      // new Notice(`Text extracted: ${text}`);
+      const { data, content } = matter(originalNote, {});
+      const propertyPath = `${[KOREADERKEY]}.data.text`;
+      this.setObjectProperty(data, propertyPath, text);
+      const yetToBeEditedPropertyPath = `${[
+        KOREADERKEY,
+      ]}.metadata.yet_to_be_edited`;
+      this.setObjectProperty(data, yetToBeEditedPropertyPath, false);
+      this.app.vault.modify(file as TFile, matter.stringify(content, data, {}));
+    } else {
+      // new Notice('Text extraction failed');
+    }
+  }
+
+  // to detect where the note's text is in the whole document
+  // I'll create a new document with a 'placeholder' text and compare the two notes
+  // the text added where the 'placeholder' text is removed is the new text of the note
+  private async extractTextFromNote(note: string): Promise<string | void> {
+    const { data, content: originalContent } = matter(note, {}) as unknown as {
+      data: { [key: string]: FrontMatter };
+      content: string;
+    };
+    // create a new note with the same frontmatter and content created with the same template
+    // and noteItself equal to 'placeholder'
+    const frontMatter = data[KOREADERKEY];
+    // exit if it's not a koreader note
+    if (!frontMatter || frontMatter.type !== NoteType.SINGLE_NOTE) {
+      return;
+    }
+    const path = this.settings.aFolderForEachBook
+      ? `${this.settings.obsidianNoteFolder}/${frontMatter.metadata.managed_book_title}`
+      : this.settings.obsidianNoteFolder;
+    // this is one of the worste things I've ever done and I'm sorry
+    // please don't judge me, I'm going to refactor this
+    // ideally using the same object as argument of the createNote function,
+    // for the template and in the frontmatter
+    let diff;
+    try {
+      const {
+        content: newContent,
+        frontmatterData,
+        notePath,
+      } = await this.createNote({
+        path,
+        uniqueId: '',
+        bookmark: {
+          chapter: frontMatter.data.chapter,
+          datetime: frontMatter.data.datetime,
+          notes: frontMatter.data.highlight,
+          highlighted: true,
+          pos0: 'pos0',
+          pos1: 'pos1',
+          page: `${frontMatter.data.page}`,
+          text: `Pagina ${frontMatter.data.page} ${frontMatter.data.highlight} @ ${frontMatter.data.datetime} ${NOTE_TEXT_PLACEHOLDER}`,
+        },
+        managedBookTitle: frontMatter.metadata.managed_book_title,
+        book: {
+          title: frontMatter.data.title,
+          authors: frontMatter.data.authors,
+          percent_finished: 1,
+          bookmarks: [],
+          highlight: frontMatter.data.highlight,
+        },
+        keepInSync: frontMatter.metadata.keep_in_sync,
+      });
+      diff = Diff.diffTrimmedLines(originalContent, newContent);
+    } catch (e) {
+      console.error(e);
+      throw new Error(ErrorType.NO_PLACEHOLDER_NOTE_CREATED);
+    }
+
+    // extract from 'diff' the new text of the note
+    // in the array is the element before the one whit 'added' to true and 'value' is 'placeholder'
+    const placeholderIndex = diff.findIndex(
+      (element) => element.added && element.value === NOTE_TEXT_PLACEHOLDER
+    );
+    if (placeholderIndex === -1) {
+      throw new Error(ErrorType.NO_PLACEHOLDER_FOUND);
+    }
+    // the new text is the value of the element before the placeholder index
+    const newText = diff[placeholderIndex - 1].value;
+    // exit if the new text is the same as the text in the frontmatter
+    if (newText === frontMatter.data.text) {
+      return;
+    }
+    return newText;
+  }
+
   private getObjectProperty(object: { [x: string]: any }, path: string) {
     if (path === undefined || path === null) {
       return object;
@@ -313,7 +428,7 @@ Page: <%= it.page %>
 
     const frontmatterData: { [key: string]: FrontMatter } = {
       [KOREADERKEY]: {
-        type: 'koreader-sync-note',
+        type: NoteType.SINGLE_NOTE,
         uniqueId,
         data: {
           title: book.title,
@@ -358,13 +473,13 @@ Page: <%= it.page %>
       }
     }
     const frontMatter = {
-      cssclass: 'koreader-sync-dataview',
+      cssclass: NoteType.BOOK_NOTE,
       [KOREADERKEY]: {
         uniqueId: crypto
           .createHash('md5')
           .update(`${book.title} - ${book.authors}}`)
           .digest('hex'),
-        type: 'koreader-sync-dataview',
+        type: NoteType.BOOK_NOTE,
         data: {
           title: book.title,
           authors: book.authors,
@@ -384,7 +499,7 @@ Page: <%= it.page %>
 \`\`\`dataviewjs
 const title = dv.current()['koreader-sync'].metadata.managed_title
 dv.pages().where(n => {
-return n['koreader-sync'] && n['koreader-sync'].type == 'koreader-sync-note' && n['koreader-sync'].metadata.managed_book_title == title
+return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}' && n['koreader-sync'].metadata.managed_book_title == title
 }).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
 \`\`\`
     `;

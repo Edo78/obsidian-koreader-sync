@@ -78,6 +78,7 @@ The query itself will embed the single notes and a CSS will hide every `h2` and 
 
 ## Usage
 Once the plugin is configured properly you can plug the device with KOReader and click on the icon with two documents and the tooltip `Sync your KOReader highlights`. The plugin should propmplty create a single file for each note.
+The plugin should take care of automatically detect when you update the text of the note itself and update the frontmatter properties accordingly.
 
 ### Commands
 **NOTE:** if a command is suppose to set a frontmatter property equal to a certain value then it will be shown only if the open note has such property with a different value.
@@ -91,8 +92,15 @@ There are five commands:
 - `Disable Sync for this note` set the frontmatter propery `keep_in_sync` to `false` (see [sync](#sync))
 
 ### Note editing
-If you chose to manually edit a note you are strongly raccomanded to change the frontmatter `yet_to_be_edited` value from `true` to `false` to let the plugin know that you altered something and to avoid any loss in case of [sync](#sync)
-It's easier/safer to use the proper [commands](#commands) to do so instead of manually editing the frontmatter
+When you edit a note you should avoit to change the frontmatter at all. Since version 0.6.0 the plugin itself should be able detect any changes to the note and to update:
+
+* the `yet_to_be_edited` value from `true` to `false` so the plugin know that you altered something and to avoid any loss in case of [sync](#sync)
+* the `text` value to mirror your edit
+
+If you want to discard your manual edits you can use the command `Mark this note as NOT Edited` and overwrite it at the next sync.
+If you change something beside the text itself (eg. the chapter, the title of the book, etc) you must use the `Mark this note as Edited` to made the plugin aware of your changes (this should not be necessary in future releases)
+
+It's easier/safer to use the proper [commands](#commands) instead of manually editing the frontmatter
 
 ### Sync
 **WARNING** Sync works by deleting a note and creating it again from KOReader. Anything added or updated (in Obsidian) will be lost _like tears in rain_. Consider yourself warned.
