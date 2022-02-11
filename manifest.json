@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-koreader-plugin",
 	"name": "KOReader Highlights",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"minAppVersion": "0.13.19",
 	"description": "This is a plugin for Obsidian. This plugin syncs highlights and notes taken in KOReader.",
 	"author": "Federico \"Edo\" Granata",
