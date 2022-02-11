@@ -26,7 +26,7 @@ enum ErrorType {
 
 enum NoteType {
   SINGLE_NOTE = 'koreader-sync-note',
-  BOOK_NOTE = 'BOOK_NOTE',
+  BOOK_NOTE = 'koreader-sync-dataview',
 }
 
 interface KOReaderSettings {
