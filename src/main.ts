@@ -581,7 +581,7 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
         const uniqueId = crypto
           .createHash('md5')
           .update(
-            `${data[book].title} - ${data[book].authors} - ${data[book].bookmarks[bookmark].pos0} - ${data[book].bookmarks[bookmark].pos1}`
+            `${data[book].title} - ${data[book].authors} - ${data[book].bookmarks[bookmark].datetime}`
           )
           .digest('hex');
 
