@@ -36,7 +36,7 @@
 	},
 	"dependencies": {
 		"diff": "^5.0.0",
-		"eta": "^1.12.3",
+		"eta": "^2.0.0",
 		"gray-matter": "^4.0.3",
 		"lua-json": "^1.0.0",
 		"node-find-files": "^1.0.0"
