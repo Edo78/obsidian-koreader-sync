@@ -119,7 +119,7 @@ export default class KOReader extends Plugin {
       }
     });
 
-    const ribbonIconEl = this.addRibbonIcon(
+    this.addRibbonIcon(
       'documents',
       'Sync your KOReader highlights',
       this.importNotes.bind(this)
@@ -282,8 +282,6 @@ export default class KOReader extends Plugin {
     try {
       const {
         content: newContent,
-        frontmatterData,
-        notePath,
       } = await this.createNote({
         path,
         uniqueId: '',
@@ -330,6 +328,7 @@ export default class KOReader extends Plugin {
     return newText;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private getObjectProperty(object: { [x: string]: any }, path: string) {
     if (path === undefined || path === null) {
       return object;
@@ -346,8 +345,10 @@ export default class KOReader extends Plugin {
   }
 
   private setObjectProperty(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     object: { [x: string]: any },
     path: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any
   ) {
     const parts = path.split('.');
@@ -360,7 +361,7 @@ export default class KOReader extends Plugin {
     object[key] = value;
   }
 
-  setFrontmatterProperty(property: string, value: any, view: MarkdownView) {
+  setFrontmatterProperty(property: string, value: boolean, view: MarkdownView) {
     const { data, content } = matter(view.data, {});
     this.setObjectProperty(data, property, value);
     const note = matter.stringify(content, data);
@@ -368,8 +369,9 @@ export default class KOReader extends Plugin {
     view.requestSave();
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getFrontmatterProperty(property: string, view: MarkdownView): any {
-    const { data, content } = matter(view.data, {});
+    const { data } = matter(view.data, {});
     return this.getObjectProperty(data, property);
   }
 
@@ -462,7 +464,7 @@ Page: <%= it.page %>
     const { path, book, managedBookTitle } = dataview;
     let { keepInSync } = this.settings;
     if (updateNote) {
-      const { data, content } = matter(
+      const { data } = matter(
         await this.app.vault.read(updateNote),
         {}
       );
@@ -577,7 +579,6 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
       }
 
       for (const bookmark in data[book].bookmarks) {
-        const updateNote: boolean = false;
         const uniqueId = crypto
           .createHash('md5')
           .update(
@@ -611,7 +612,7 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
           !existingNotes[uniqueId].yet_to_be_edited
         ) {
           const note = existingNotes[uniqueId].note as TFile;
-          const { content, frontmatterData, notePath } = await this.createNote({
+          const { content, frontmatterData } = await this.createNote({
             path,
             uniqueId,
             bookmark: data[book].bookmarks[bookmark],
@@ -663,6 +664,7 @@ class KoreaderSettingTab extends PluginSettingTab {
       .setName('Highlights folder location')
       .setDesc('Vault folder to use for writing book highlight notes')
       .addDropdown((dropdown) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { files } = this.app.vault.adapter as any;
         const folders = Object.keys(files).filter(
           (key) => files[key].type === 'folder'

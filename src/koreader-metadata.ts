@@ -13,6 +13,7 @@ export class KOReaderMetadata {
   }
 
   public async scan(): Promise<Books> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const metadatas: any = {};
     return new Promise((resolve, reject) => {
       const find = new finder({
@@ -22,6 +23,7 @@ export class KOReaderMetadata {
         const filename = path.parse(file).base;
         if (filename.match(/metadata\..*\.lua$/)) {
           const content = fs.readFileSync(file, 'utf8');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const jsonMetadata: any = parse(content);
           const {
             highlight,
@@ -41,6 +43,7 @@ export class KOReaderMetadata {
           }
         }
       });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       find.on('error', (err: any) => {
         console.log(err);
         reject(err);

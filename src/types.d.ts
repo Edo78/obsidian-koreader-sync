@@ -17,6 +17,7 @@ export interface Book {
   title: string;
   authors: string;
   bookmarks: Bookmarks;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   highlight: any;
   percent_finished: number;
 }
