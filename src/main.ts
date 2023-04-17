@@ -228,7 +228,9 @@ export default class KOReader extends Plugin {
     this.addSettingTab(new KoreaderSettingTab(this.app, this));
   }
 
-  onunload() {}
+  onunload() {
+    // this method is called when the plugin is deactivated
+  }
 
   async loadSettings() {
     this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
