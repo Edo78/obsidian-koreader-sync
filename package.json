@@ -1,44 +1,44 @@
 {
-	"name": "obsidian-koreader-plugin",
-	"version": "0.6.1",
-	"description": "This is a plugin for Obsidian. This plugin syncs highlights and notes taken in KOReader.",
-	"main": "main.js",
-	"scripts": {
-		"lint": "eslint",
-		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
-	},
-	"keywords": [],
-	"author": "Federico \"Edo\" Granata",
-	"license": "MIT",
-	"devDependencies": {
-		"@types/diff": "^5.0.2",
-		"@types/lua-json": "^1.0.1",
-		"@types/node": "^16.11.21",
-		"@typescript-eslint/eslint-plugin": "^5.2.0",
-		"@typescript-eslint/parser": "^5.2.0",
-		"builtin-modules": "^3.2.0",
-		"esbuild": "0.13.12",
-		"eslint": "^8.7.0",
-		"eslint-config-airbnb": "^19.0.4",
-		"eslint-config-node": "^4.1.0",
-		"eslint-config-prettier": "^8.3.0",
-		"eslint-plugin-import": "^2.25.4",
-		"eslint-plugin-jsx-a11y": "^6.5.1",
-		"eslint-plugin-node": "^11.1.0",
-		"eslint-plugin-prettier": "^4.0.0",
-		"eslint-plugin-react": "^7.28.0",
-		"eslint-plugin-react-hooks": "^4.3.0",
-		"obsidian": "^1.1.1",
-		"prettier": "^2.5.1",
-		"tslib": "2.3.1",
-		"typescript": "4.4.4"
-	},
-	"dependencies": {
-		"diff": "^5.0.0",
-		"eta": "^2.0.0",
-		"gray-matter": "^4.0.3",
-		"lua-json": "^1.0.0",
-		"node-find-files": "^1.0.0"
-	}
+  "name": "obsidian-koreader-plugin",
+  "version": "0.6.1",
+  "description": "This is a plugin for Obsidian. This plugin syncs highlights and notes taken in KOReader.",
+  "main": "main.js",
+  "scripts": {
+    "lint": "eslint src/**/*.ts --fix",
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production"
+  },
+  "keywords": [],
+  "author": "Federico \"Edo\" Granata",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/diff": "^5.0.2",
+    "@types/lua-json": "^1.0.1",
+    "@types/node": "^16.11.21",
+    "@typescript-eslint/eslint-plugin": "^5.2.0",
+    "@typescript-eslint/parser": "^5.2.0",
+    "builtin-modules": "^3.2.0",
+    "esbuild": "0.13.12",
+    "eslint": "^8.7.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-node": "^4.1.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-react": "^7.28.0",
+    "eslint-plugin-react-hooks": "^4.3.0",
+    "obsidian": "^1.1.1",
+    "prettier": "^2.5.1",
+    "tslib": "2.3.1",
+    "typescript": "4.4.4"
+  },
+  "dependencies": {
+    "diff": "^5.0.0",
+    "eta": "^2.0.0",
+    "gray-matter": "^4.0.3",
+    "lua-json": "^1.0.0",
+    "node-find-files": "^1.0.0"
+  }
 }
