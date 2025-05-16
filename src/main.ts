@@ -43,6 +43,8 @@ interface KOReaderSettings {
   createDataviewQuery: boolean;
   importedNotes: { [key: string]: boolean };
   enbleResetImportedNotes: boolean;
+  enableTest: boolean;
+  testBasePath?: string; // Nuovo campo
 }
 
 const DEFAULT_SETTINGS: KOReaderSettings = {
@@ -64,6 +66,8 @@ const DEFAULT_SETTINGS: KOReaderSettings = {
     maxLength: 25,
     prefix: '(book) ',
   },
+  enableTest: false,
+  testBasePath: '/path/to/test/files', // Valore predefinito
 };
 
 interface TitleOptions {
@@ -225,6 +229,14 @@ export default class KOReader extends Plugin {
       },
     });
 
+    this.addCommand({
+      id: 'obsidian-koreader-plugin-test',
+      name: 'Test',
+      callback: () => {
+        this.test();
+      }
+    })
+
     this.addSettingTab(new KoreaderSettingTab(this.app, this));
   }
 
@@ -240,6 +252,12 @@ export default class KOReader extends Plugin {
     await this.saveData(this.settings);
   }
 
+  async test() {
+    this.settings.enableTest = !this.settings.enableTest;
+    await this.saveSettings();
+    new Notice(`Test mode ${this.settings.enableTest ? 'enabled' : 'disabled'}`);
+  }
+
   private async updateMetadataText(file: TFile) {
     const originalNote = await this.app.vault.cachedRead(file);
     const text = await this.extractTextFromNote(originalNote);
@@ -252,7 +270,9 @@ export default class KOReader extends Plugin {
         KOREADERKEY,
       ]}.metadata.yet_to_be_edited`;
       this.setObjectProperty(data, yetToBeEditedPropertyPath, false);
+      console.log(1);
       this.app.vault.modify(file as TFile, matter.stringify(content, data, {}));
+      console.log(1);
     } else {
       // new Notice('Text extraction failed');
     }
@@ -366,7 +386,9 @@ export default class KOReader extends Plugin {
   setFrontmatterProperty(property: string, value: boolean, view: MarkdownView) {
     const { data, content } = matter(view.data, {});
     this.setObjectProperty(data, property, value);
+    console.log(3);
     const note = matter.stringify(content, data);
+    console.log(4);
     view.setViewData(note, false);
     view.requestSave();
   }
@@ -387,11 +409,30 @@ export default class KOReader extends Plugin {
   }) {
     const { path, uniqueId, bookmark, managedBookTitle, book, keepInSync } =
       note;
-    // the page is always the first number in the bookmark's text (eg. 'Pagina 12 foo bar')
-    const page = bookmark.text ? parseInt(bookmark.text.match(/\d+/g)[0]) : -1;
-    const noteItself = bookmark.text
-      ? bookmark.text.split(bookmark.datetime)[1].replace(/^\s+|\s+$/g, '')
-      : '';
+    // the page should be the first number in the bookmark's text (eg. 'Pagina 12 foo bar')
+    const pageMatch = bookmark.text ? bookmark.text.match(/\d+/g) : null;
+    let page = -1;
+
+    if (pageMatch && pageMatch.length > 0) {
+      const parsedPage = parseInt(pageMatch[0]);
+      if (!isNaN(parsedPage)) {
+        page = parsedPage;
+      }
+    }
+    const noteItself = (() => {
+      if (!bookmark.text) return '';
+    
+      if (bookmark.text.includes(bookmark.datetime)) {
+        const parts = bookmark.text.split(bookmark.datetime);
+        if (parts.length > 1) {
+          return parts[1].trim();
+        } else {
+          return '';
+        }
+      } else {
+        return bookmark.text.trim();
+      }
+    })();
     const noteTitle = noteItself
       ? this.manageTitle(noteItself, this.settings.noteTitleOptions)
       : `${this.manageTitle(
@@ -519,17 +560,25 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
       frontMatter[KOREADERKEY]
     )) as string;
     if (updateNote) {
+      console.log(5);
       this.app.vault.modify(updateNote, matter.stringify(content, frontMatter));
+      console.log(6);
     } else {
+      console.log(7);
       this.app.vault.create(
         `${path}/${managedBookTitle}.md`,
         matter.stringify(content, frontMatter)
       );
+      console.log(8);
     }
   }
 
   async importNotes() {
-    const metadata = new KOReaderMetadata(this.settings.koreaderBasePath);
+    console.log("Sync started");
+    const basePath = this.settings.enableTest 
+      ? this.settings.testBasePath 
+      : this.settings.koreaderBasePath;
+    const metadata = new KOReaderMetadata(basePath);
     const data: Books = await metadata.scan();
 
     // create a list of notes already imported in obsidian
@@ -601,10 +650,13 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
                 keepInSync: this.settings.keepInSync,
               });
 
-            this.app.vault.create(
+              console.log(9);
+              console.log(JSON.stringify(frontmatterData, null, 2));
+              this.app.vault.create(
               `${notePath}.md`,
               matter.stringify(content, frontmatterData)
             );
+            console.log(10);
           }
           this.settings.importedNotes[uniqueId] = true;
           // else if the note exists and keep_in_sync is true and yet_to_be_edited is false, we update it
@@ -623,10 +675,12 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
             keepInSync: existingNotes[uniqueId]?.keep_in_sync,
           });
 
+          console.log(11);
           this.app.vault.modify(
             note,
             matter.stringify(content, frontmatterData)
           );
+          console.log(12);
         }
       }
     }
@@ -679,7 +733,7 @@ class KoreaderSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.obsidianNoteFolder = value;
             await this.plugin.saveSettings();
-          });
+          })
       });
 
     new Setting(containerEl)
@@ -921,5 +975,39 @@ class KoreaderSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           })
       );
+
+    containerEl.createEl('h2', { text: 'Debug settings' });
+
+    const debugContainer = containerEl.createDiv();
+
+    new Setting(debugContainer)
+      .setName('Enable test mode')
+      .setDesc('Toggle test mode on/off')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.enableTest)
+          .onChange(async (value) => {
+            this.plugin.settings.enableTest = value;
+            // Mostra/nascondi il campo testBasePath in base al valore di enableTest
+            testPathSetting.settingEl.style.display = value ? 'flex' : 'none';
+            await this.plugin.saveSettings();
+          })
+      );
+
+    const testPathSetting = new Setting(debugContainer)
+      .setName('Test files path')
+      .setDesc('Path to test files directory')
+      .addText((text) =>
+        text
+          .setPlaceholder('/path/to/test/files')
+          .setValue(this.plugin.settings.testBasePath)
+          .onChange(async (value) => {
+            this.plugin.settings.testBasePath = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    // Imposta la visibilità iniziale del campo testBasePath
+    testPathSetting.settingEl.style.display = this.plugin.settings.enableTest ? 'flex' : 'none';
   }
 }
