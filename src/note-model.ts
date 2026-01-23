@@ -10,7 +10,9 @@ export const DEFAULT_NOTE_TEMPLATE = `## Title: [[<%= it.bookPath %>|<%= it.titl
 
 ### Chapter: <%= it.chapter %>
 
-Page: <%= it.page %>
+<% if (it.page !== null) { %>Page: <%= it.page %>
+
+<% } %>
 
 **==<%= it.highlight %>==**
 
@@ -22,7 +24,7 @@ export interface NotePayload {
   keepInSync: boolean;
   book: Book;
   bookmark: Bookmark;
-  page: number;
+  page: number | null;
   noteItself: string;
   noteTitle: string;
   bookPath: string;
@@ -72,15 +74,28 @@ function normalizePathLocal(value: string) {
   return value.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
 
-function extractPageFromBookmarkText(text?: string): number {
-  const pageMatch = text ? text.match(/\d+/g) : null;
-  if (pageMatch && pageMatch.length > 0) {
-    const parsedPage = parseInt(pageMatch[0], 10);
+function extractPageFromBookmark(bookmark: Bookmark): number | null {
+  if (bookmark.page && /^\d+$/.test(bookmark.page)) {
+    const parsedPage = parseInt(bookmark.page, 10);
     if (!isNaN(parsedPage)) {
       return parsedPage;
     }
   }
-  return -1;
+
+  if (bookmark.text) {
+    const textPrefix = bookmark.text.split('@')[0];
+    const labeledMatch = textPrefix.match(
+      /\b(?:page|pagina|seite|página|pag\.?|pg\.?)[\s:]+(\d+)/i
+    );
+    if (labeledMatch?.[1]) {
+      const parsedPage = parseInt(labeledMatch[1], 10);
+      if (!isNaN(parsedPage)) {
+        return parsedPage;
+      }
+    }
+  }
+
+  return null;
 }
 
 function extractNoteText(bookmark: Bookmark): string {
@@ -121,7 +136,7 @@ export function buildNotePayloadFromBookmark(
     normalizePath,
   } = options;
   const noteItself = extractNoteText(bookmark);
-  const page = extractPageFromBookmarkText(bookmark.text);
+  const page = extractPageFromBookmark(bookmark);
   const noteTitle = buildNoteTitle(
     noteItself,
     bookmark.notes,

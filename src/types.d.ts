@@ -30,7 +30,7 @@ export interface FrontMatterData {
   title: string;
   authors: string;
   chapter: string;
-  page: number;
+  page: number | null;
   highlight: string;
   datetime: string;
   text: string;

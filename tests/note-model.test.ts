@@ -60,4 +60,70 @@ describe('note-model', () => {
     expect(payloadFromFrontmatter.noteItself).toBe(payload.noteItself);
     expect(payloadFromFrontmatter.noteTitle).toBe(payload.noteTitle);
   });
+
+  it('uses bookmark.page when text has no page number', () => {
+    const book = {
+      title: 'Book B',
+      authors: 'Author',
+      percent_finished: 100,
+      bookmarks: {},
+      highlight: {},
+    };
+
+    const bookmark = {
+      chapter: 'Ch 2',
+      text: 'No page in note text',
+      datetime: '2024-01-01 10:00:00',
+      notes: 'Quote',
+      highlighted: true,
+      pos0: '1',
+      pos1: '2',
+      page: '14',
+    };
+
+    const payload = buildNotePayloadFromBookmark({
+      path: 'koreader',
+      uniqueId: 'uid-2',
+      book,
+      bookmark,
+      managedBookTitle: '(book) Book B-Author',
+      keepInSync: true,
+      noteTitleOptions: { maxWords: 5, maxLength: 25 },
+    });
+
+    expect(payload.page).toBe(14);
+  });
+
+  it('returns null when page is not derivable', () => {
+    const book = {
+      title: 'Book C',
+      authors: 'Author',
+      percent_finished: 100,
+      bookmarks: {},
+      highlight: {},
+    };
+
+    const bookmark = {
+      chapter: 'Ch 3',
+      text: 'Custom note without numbers @ 2024-01-01 10:00:00',
+      datetime: '2024-01-01 10:00:00',
+      notes: 'Quote',
+      highlighted: true,
+      pos0: '1',
+      pos1: '2',
+      page: '/body/DocFragment/body/p[1]/span/text().13',
+    };
+
+    const payload = buildNotePayloadFromBookmark({
+      path: 'koreader',
+      uniqueId: 'uid-3',
+      book,
+      bookmark,
+      managedBookTitle: '(book) Book C-Author',
+      keepInSync: true,
+      noteTitleOptions: { maxWords: 5, maxLength: 25 },
+    });
+
+    expect(payload.page).toBeNull();
+  });
 });
