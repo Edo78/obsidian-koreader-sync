@@ -58,7 +58,8 @@ export interface TitleOptions {
 export function sanitizeForPath(value: string): string {
   if (!value) return '';
   const normalized = value.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return normalized.replace(/[<>:"/\\|?*]/g, '_');
+  const cleaned = normalized.replace(/[<>:"/\\|?*]/g, '_');
+  return cleaned.replace(/[.\s]+$/g, '');
 }
 
 export function manageTitle(title: string, options: TitleOptions = {}): string {
@@ -123,10 +124,10 @@ function buildNoteTitle(
   options?: TitleOptions
 ): string {
   if (noteItself) {
-    return manageTitle(noteItself, options);
+    return sanitizeForPath(manageTitle(noteItself, options));
   }
   const safeAuthors = sanitizeForPath(authors);
-  return `${manageTitle(highlight, options)} - ${safeAuthors}`;
+  return sanitizeForPath(`${manageTitle(highlight, options)} - ${safeAuthors}`);
 }
 
 export function buildNotePayloadFromBookmark(

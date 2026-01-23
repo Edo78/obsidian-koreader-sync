@@ -540,10 +540,12 @@ export default class KOReader extends Plugin {
         console.log(`[TEST MODE] Processing book: ${book}`);
         console.log(`[TEST MODE] Book data:`, JSON.stringify(data[book], null, 2));
       }
-      const managedBookTitle = `${this.manageTitle(
-        data[book].title,
-        this.settings.bookTitleOptions
-      )}-${sanitizeForPath(data[book].authors)}`;
+      const managedBookTitle = sanitizeForPath(
+        `${this.manageTitle(
+          data[book].title,
+          this.settings.bookTitleOptions
+        )}-${sanitizeForPath(data[book].authors)}`
+      );
       // if the setting aFolderForEachBook is true, we add the managedBookTitle to the path specified in obsidianNoteFolder
       const path = this.settings.aFolderForEachBook
         ? `${this.settings.obsidianNoteFolder}/${managedBookTitle}`

@@ -160,4 +160,38 @@ describe('note-model', () => {
     expect(payload.noteTitle).toContain('Author One Author Two');
     expect(payload.noteTitle).not.toContain('\n');
   });
+
+  it('removes trailing dot/space in note title', () => {
+    const book = {
+      title: 'Book E',
+      authors: 'Author',
+      percent_finished: 100,
+      bookmarks: {},
+      highlight: {},
+    };
+
+    const bookmark = {
+      chapter: 'Ch 5',
+      text: 'Trailing. @ 2024-01-01 10:00:00 ',
+      datetime: '2024-01-01 10:00:00',
+      notes: 'Trailing.',
+      highlighted: true,
+      pos0: '1',
+      pos1: '2',
+      page: '10',
+    };
+
+    const payload = buildNotePayloadFromBookmark({
+      path: 'koreader',
+      uniqueId: 'uid-5',
+      book,
+      bookmark,
+      managedBookTitle: '(book) Book E-Author',
+      keepInSync: true,
+      noteTitleOptions: { maxWords: 5, maxLength: 25 },
+    });
+
+    expect(payload.noteTitle.endsWith('.')).toBe(false);
+    expect(payload.noteTitle.endsWith(' ')).toBe(false);
+  });
 });
