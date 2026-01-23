@@ -16,6 +16,11 @@ import {
 import matter from 'gray-matter';
 import * as Diff from 'diff';
 import { Book, Bookmark, Books, FrontMatter } from './types';
+import {
+  DEFAULT_DATAVIEW_TEMPLATE,
+  buildBookDataviewFrontMatter,
+  renderBookDataviewContent,
+} from './markdown-generator';
 
 import { KOReaderMetadata } from './koreader-metadata';
 
@@ -270,9 +275,7 @@ export default class KOReader extends Plugin {
         KOREADERKEY,
       ]}.metadata.yet_to_be_edited`;
       this.setObjectProperty(data, yetToBeEditedPropertyPath, false);
-      console.log(1);
       this.app.vault.modify(file as TFile, matter.stringify(content, data, {}));
-      console.log(1);
     } else {
       // new Notice('Text extraction failed');
     }
@@ -297,7 +300,7 @@ export default class KOReader extends Plugin {
       ? `${this.settings.obsidianNoteFolder}/${frontMatter.metadata.managed_book_title}`
       : this.settings.obsidianNoteFolder;
     // this is one of the worste things I've ever done and I'm sorry
-    // please don't judge me, I'm going to refactor this
+    // please don't judge me, i'm going to refactor this
     // ideally using the same object as argument of the createNote function,
     // for the template and in the frontmatter
     let diff;
@@ -386,9 +389,7 @@ export default class KOReader extends Plugin {
   setFrontmatterProperty(property: string, value: boolean, view: MarkdownView) {
     const { data, content } = matter(view.data, {});
     this.setObjectProperty(data, property, value);
-    console.log(3);
     const note = matter.stringify(content, data);
-    console.log(4);
     view.setViewData(note, false);
     view.requestSave();
   }
@@ -517,59 +518,29 @@ Page: <%= it.page %>
         return;
       }
     }
-    const frontMatter = {
-      cssclass: NoteType.BOOK_NOTE,
-      [KOREADERKEY]: {
-        uniqueId: crypto
-          .createHash('md5')
-          .update(`${book.title} - ${book.authors}}`)
-          .digest('hex'),
-        type: NoteType.BOOK_NOTE,
-        data: {
-          title: book.title,
-          authors: book.authors,
-        },
-        metadata: {
-          percent_finished: book.percent_finished,
-          managed_title: managedBookTitle,
-          keep_in_sync: keepInSync,
-          yet_to_be_edited: true,
-        },
-      },
-    };
-
-    const defaultTemplate = `# Title: <%= it.data.title %>
-
-<progress value="<%= it.metadata.percent_finished %>" max="100"> </progress>
-\`\`\`dataviewjs
-const title = dv.current()['koreader-sync'].metadata.managed_title
-dv.pages().where(n => {
-return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}' && n['koreader-sync'].metadata.managed_book_title == title
-}).sort(p => p['koreader-sync'].data.page).forEach(p => dv.paragraph(dv.fileLink(p.file.name, true), {style: 'test-css'}))
-\`\`\`
-    `;
+    const frontMatter = buildBookDataviewFrontMatter({
+      book,
+      managedBookTitle,
+      keepInSync,
+    });
 
     const templateFile = this.settings.customDataviewTemplate
       ? this.app.vault.getAbstractFileByPath(this.settings.dataviewTemplatePath)
       : null;
     const template = templateFile
       ? await this.app.vault.read(templateFile as TFile)
-      : defaultTemplate;
-    const content = (await eta.render(
+      : DEFAULT_DATAVIEW_TEMPLATE;
+    const content = await renderBookDataviewContent(
       template,
       frontMatter[KOREADERKEY]
-    )) as string;
+    );
     if (updateNote) {
-      console.log(5);
       this.app.vault.modify(updateNote, matter.stringify(content, frontMatter));
-      console.log(6);
     } else {
-      console.log(7);
       this.app.vault.create(
         `${path}/${managedBookTitle}.md`,
         matter.stringify(content, frontMatter)
       );
-      console.log(8);
     }
   }
 
@@ -578,8 +549,16 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
     const basePath = this.settings.enableTest 
       ? this.settings.testBasePath 
       : this.settings.koreaderBasePath;
+    if (this.settings.enableTest) {
+      console.log("[TEST MODE] KOReader Sync is running in test mode");
+      console.log("Test base path:", this.settings.testBasePath);
+      console.log("KOReaderMetadata basePath:", basePath);
+    }
     const metadata = new KOReaderMetadata(basePath);
     const data: Books = await metadata.scan();
+    if (this.settings.enableTest) {
+      console.log("[TEST MODE] Parsed KOReader metadata:", JSON.stringify(data, null, 2));
+    }
 
     // create a list of notes already imported in obsidian
     const existingNotes: {
@@ -601,6 +580,10 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
     });
 
     for (const book in data) {
+      if (this.settings.enableTest) {
+        console.log(`[TEST MODE] Processing book: ${book}`);
+        console.log(`[TEST MODE] Book data:`, JSON.stringify(data[book], null, 2));
+      }
       const managedBookTitle = `${this.manageTitle(
         data[book].title,
         this.settings.bookTitleOptions
@@ -630,6 +613,10 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
       }
 
       for (const bookmark in data[book].bookmarks) {
+        if (this.settings.enableTest) {
+          console.log(`[TEST MODE] Processing bookmark: ${bookmark}`);
+          console.log(`[TEST MODE] Bookmark data:`, JSON.stringify(data[book].bookmarks[bookmark], null, 2));
+        }
         const uniqueId = crypto
           .createHash('md5')
           .update(
@@ -650,13 +637,10 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
                 keepInSync: this.settings.keepInSync,
               });
 
-              console.log(9);
-              console.log(JSON.stringify(frontmatterData, null, 2));
-              this.app.vault.create(
+            this.app.vault.create(
               `${notePath}.md`,
               matter.stringify(content, frontmatterData)
             );
-            console.log(10);
           }
           this.settings.importedNotes[uniqueId] = true;
           // else if the note exists and keep_in_sync is true and yet_to_be_edited is false, we update it
@@ -674,13 +658,10 @@ return n['koreader-sync'] && n['koreader-sync'].type == '${NoteType.SINGLE_NOTE}
             book: data[book],
             keepInSync: existingNotes[uniqueId]?.keep_in_sync,
           });
-
-          console.log(11);
           this.app.vault.modify(
             note,
             matter.stringify(content, frontmatterData)
           );
-          console.log(12);
         }
       }
     }
