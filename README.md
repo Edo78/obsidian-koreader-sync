@@ -17,6 +17,8 @@ There ara four main settings:
 - `Keep in sync` that define if the plugin **should** keep the notes in sync with KOReader importing them again (see [sync](#sync))
 - `Create a folder for each book` if you are a fan of folders enabling this setting the **new notes** will be created in a subfolder named as the book itself
 
+Example (Windows): set KOReader mounted path to the device root (drive letter) or to a folder that contains the .sdr directories. For example: E:\ or E:/. If this doesn't work, please report your experience in issue #60.
+
 ### Danger Zone
 
 This area contains settings that can be useful in a very few edga cases and can be dangerous in a day to day usage.

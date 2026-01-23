@@ -9,12 +9,28 @@ export class KOReaderMetadata {
   koreaderBasePath: string;
 
   constructor(koreaderBasePath: string) {
-    this.koreaderBasePath = koreaderBasePath;
+    this.koreaderBasePath = KOReaderMetadata.normalizeBasePath(
+      koreaderBasePath
+    );
+  }
+
+  static normalizeBasePath(basePath: string): string {
+    const trimmed = basePath?.trim?.() ?? basePath;
+    if (!trimmed) return trimmed;
+    if (process.platform === 'win32') {
+      return path.win32.normalize(trimmed);
+    }
+    return path.normalize(trimmed);
   }
 
   public async scan(): Promise<Books> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const metadatas: any = {};
+    if (!this.koreaderBasePath || !fs.existsSync(this.koreaderBasePath)) {
+      return Promise.reject(
+        new Error(`KOReader path not found: ${this.koreaderBasePath}`)
+      );
+    }
     return new Promise((resolve, reject) => {
       const find = new finder({
         rootFolder: this.koreaderBasePath,

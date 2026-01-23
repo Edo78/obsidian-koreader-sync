@@ -492,8 +492,25 @@ export default class KOReader extends Plugin {
       console.log("Test base path:", this.settings.testBasePath);
       console.log("KOReaderMetadata basePath:", basePath);
     }
-    const metadata = new KOReaderMetadata(basePath);
-    const data: Books = await metadata.scan();
+    let data: Books;
+    try {
+      const metadata = new KOReaderMetadata(basePath);
+      data = await metadata.scan();
+    } catch (e) {
+      console.error(e);
+      new Notice(
+        `KOReader path not found or not readable: ${basePath}. ` +
+          'Use the device root (drive letter) or the folder containing .sdr.'
+      );
+      return;
+    }
+    if (!Object.keys(data).length) {
+      new Notice(
+        `No KOReader metadata found at ${basePath}. ` +
+          'Make sure it points to the device root or the folder containing .sdr.'
+      );
+      return;
+    }
     if (this.settings.enableTest) {
       console.log("[TEST MODE] Parsed KOReader metadata:", JSON.stringify(data, null, 2));
     }
