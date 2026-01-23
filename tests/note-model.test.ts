@@ -126,4 +126,38 @@ describe('note-model', () => {
 
     expect(payload.page).toBeNull();
   });
+
+  it('sanitizes authors in note title', () => {
+    const book = {
+      title: 'Book D',
+      authors: 'Author One\nAuthor Two',
+      percent_finished: 100,
+      bookmarks: {},
+      highlight: {},
+    };
+
+    const bookmark = {
+      chapter: 'Ch 4',
+      text: '',
+      datetime: '2024-01-01 10:00:00',
+      notes: 'Some highlight',
+      highlighted: true,
+      pos0: '1',
+      pos1: '2',
+      page: '10',
+    };
+
+    const payload = buildNotePayloadFromBookmark({
+      path: 'koreader',
+      uniqueId: 'uid-4',
+      book,
+      bookmark,
+      managedBookTitle: '(book) Book D-Author One Author Two',
+      keepInSync: true,
+      noteTitleOptions: { maxWords: 5, maxLength: 25 },
+    });
+
+    expect(payload.noteTitle).toContain('Author One Author Two');
+    expect(payload.noteTitle).not.toContain('\n');
+  });
 });

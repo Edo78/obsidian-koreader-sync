@@ -55,6 +55,12 @@ export interface TitleOptions {
   maxWords?: number;
 }
 
+export function sanitizeForPath(value: string): string {
+  if (!value) return '';
+  const normalized = value.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return normalized.replace(/[<>:"/\\|?*]/g, '_');
+}
+
 export function manageTitle(title: string, options: TitleOptions = {}): string {
   title = title.replace(/\\|\/|:/g, '_');
   title = title.replace(/_+/g, '_');
@@ -119,7 +125,8 @@ function buildNoteTitle(
   if (noteItself) {
     return manageTitle(noteItself, options);
   }
-  return `${manageTitle(highlight, options)} - ${authors}`;
+  const safeAuthors = sanitizeForPath(authors);
+  return `${manageTitle(highlight, options)} - ${safeAuthors}`;
 }
 
 export function buildNotePayloadFromBookmark(

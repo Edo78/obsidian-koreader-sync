@@ -27,6 +27,7 @@ import {
   buildNotePayloadFromBookmark,
   buildNotePayloadFromFrontmatter,
   renderNoteContent,
+  sanitizeForPath,
 } from './note-model';
 
 import { KOReaderMetadata } from './koreader-metadata';
@@ -542,7 +543,7 @@ export default class KOReader extends Plugin {
       const managedBookTitle = `${this.manageTitle(
         data[book].title,
         this.settings.bookTitleOptions
-      )}-${data[book].authors}`;
+      )}-${sanitizeForPath(data[book].authors)}`;
       // if the setting aFolderForEachBook is true, we add the managedBookTitle to the path specified in obsidianNoteFolder
       const path = this.settings.aFolderForEachBook
         ? `${this.settings.obsidianNoteFolder}/${managedBookTitle}`
