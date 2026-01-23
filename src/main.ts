@@ -21,6 +21,13 @@ import {
   buildBookDataviewFrontMatter,
   renderBookDataviewContent,
 } from './markdown-generator';
+import {
+  DEFAULT_NOTE_TEMPLATE,
+  buildFrontmatterFromPayload,
+  buildNotePayloadFromBookmark,
+  buildNotePayloadFromFrontmatter,
+  renderNoteContent,
+} from './note-model';
 
 import { KOReaderMetadata } from './koreader-metadata';
 
@@ -305,31 +312,21 @@ export default class KOReader extends Plugin {
     // for the template and in the frontmatter
     let diff;
     try {
-      const {
-        content: newContent,
-      } = await this.createNote({
+      const payload = buildNotePayloadFromFrontmatter({
         path,
-        uniqueId: '',
-        bookmark: {
-          chapter: frontMatter.data.chapter,
-          datetime: frontMatter.data.datetime,
-          notes: frontMatter.data.highlight,
-          highlighted: true,
-          pos0: 'pos0',
-          pos1: 'pos1',
-          page: `${frontMatter.data.page}`,
-          text: `Pagina ${frontMatter.data.page} ${frontMatter.data.highlight} @ ${frontMatter.data.datetime} ${NOTE_TEXT_PLACEHOLDER}`,
-        },
-        managedBookTitle: frontMatter.metadata.managed_book_title,
-        book: {
-          title: frontMatter.data.title,
-          authors: frontMatter.data.authors,
-          percent_finished: 1,
-          bookmarks: [],
-          highlight: frontMatter.data.highlight,
-        },
-        keepInSync: frontMatter.metadata.keep_in_sync,
+        frontmatter: frontMatter,
+        noteTitleOptions: this.settings.noteTitleOptions,
+        normalizePath,
       });
+      const placeholderPayload = {
+        ...payload,
+        noteItself: NOTE_TEXT_PLACEHOLDER,
+      };
+      const template = await this.getNoteTemplate();
+      const newContent = await renderNoteContent(
+        template,
+        placeholderPayload
+      );
       diff = Diff.diffTrimmedLines(originalContent, newContent);
     } catch (e) {
       console.error(e);
@@ -410,91 +407,32 @@ export default class KOReader extends Plugin {
   }) {
     const { path, uniqueId, bookmark, managedBookTitle, book, keepInSync } =
       note;
-    // the page should be the first number in the bookmark's text (eg. 'Pagina 12 foo bar')
-    const pageMatch = bookmark.text ? bookmark.text.match(/\d+/g) : null;
-    let page = -1;
+    const payload = buildNotePayloadFromBookmark({
+      path,
+      uniqueId,
+      book,
+      bookmark,
+      managedBookTitle,
+      keepInSync: keepInSync ?? this.settings.keepInSync,
+      noteTitleOptions: this.settings.noteTitleOptions,
+      normalizePath,
+    });
 
-    if (pageMatch && pageMatch.length > 0) {
-      const parsedPage = parseInt(pageMatch[0]);
-      if (!isNaN(parsedPage)) {
-        page = parsedPage;
-      }
-    }
-    const noteItself = (() => {
-      if (!bookmark.text) return '';
-    
-      if (bookmark.text.includes(bookmark.datetime)) {
-        const parts = bookmark.text.split(bookmark.datetime);
-        if (parts.length > 1) {
-          return parts[1].trim();
-        } else {
-          return '';
-        }
-      } else {
-        return bookmark.text.trim();
-      }
-    })();
-    const noteTitle = noteItself
-      ? this.manageTitle(noteItself, this.settings.noteTitleOptions)
-      : `${this.manageTitle(
-          bookmark.notes,
-          this.settings.noteTitleOptions
-        )} - ${book.authors}`;
-    const notePath = normalizePath(`${path}/${noteTitle}`);
+    const template = await this.getNoteTemplate();
+    const content = await renderNoteContent(template, payload);
+    const frontmatterData = buildFrontmatterFromPayload(payload, content);
+    const notePath = normalizePath(`${path}/${payload.noteTitle}`);
 
-    const defaultTemplate = `## Title: [[<%= it.bookPath %>|<%= it.title %>]]
+    return { content, frontmatterData, notePath };
+  }
 
-### by: [[<%= it.authors %>]]
-
-### Chapter: <%= it.chapter %>
-
-Page: <%= it.page %>
-
-**==<%= it.highlight %>==**
-
-<%= it.text %>`;
-
+  private async getNoteTemplate() {
     const templateFile = this.settings.customTemplate
       ? this.app.vault.getAbstractFileByPath(this.settings.templatePath)
       : null;
-    const template = templateFile
+    return templateFile
       ? await this.app.vault.read(templateFile as TFile)
-      : defaultTemplate;
-    const bookPath = normalizePath(`${path}/${managedBookTitle}`);
-    const content = (await eta.render(template, {
-      bookPath,
-      title: book.title,
-      authors: book.authors,
-      chapter: bookmark.chapter,
-      highlight: bookmark.notes,
-      text: noteItself,
-      datetime: bookmark.datetime,
-      page,
-    })) as string;
-
-    const frontmatterData: { [key: string]: FrontMatter } = {
-      [KOREADERKEY]: {
-        type: NoteType.SINGLE_NOTE,
-        uniqueId,
-        data: {
-          title: book.title,
-          authors: book.authors,
-          chapter: bookmark.chapter,
-          page,
-          highlight: bookmark.notes,
-          datetime: bookmark.datetime,
-          text: noteItself,
-        },
-        metadata: {
-          body_hash: crypto.createHash('md5').update(content).digest('hex'),
-          keep_in_sync: keepInSync || this.settings.keepInSync,
-          yet_to_be_edited: true,
-          managed_book_title: managedBookTitle,
-        },
-      },
-    };
-
-    return { content, frontmatterData, notePath };
+      : DEFAULT_NOTE_TEMPLATE;
   }
 
   async createDataviewQueryPerBook(

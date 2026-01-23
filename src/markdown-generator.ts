@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import * as eta from 'eta';
-import matter from 'gray-matter';
+import * as matter from 'gray-matter';
 import { Book } from './types';
 
 const KOREADERKEY = 'koreader-sync';

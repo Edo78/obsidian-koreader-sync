@@ -14,7 +14,6 @@ koreader-sync:
 ---
 # Title: test
 <progress value="50" max="100"> </progress>
-
 ```dataviewjs
 const title = dv.current()['koreader-sync'].metadata.managed_title
 dv.pages().where(n => {
